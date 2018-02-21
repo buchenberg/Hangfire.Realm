@@ -1,6 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hangfire.Realm", "Hangfire.Realm\Hangfire.Realm\Hangfire.Realm\Hangfire.Realm.csproj", "{6154F5B6-1728-4305-A17E-5281E2CE3EDA}"
+# Visual Studio 15
+VisualStudioVersion = 15.0.27130.2026
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hangfire.Realm", "Hangfire.Realm\Hangfire.Realm.csproj", "{6311504D-9633-4D34-8689-FB9D345BE553}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -8,9 +11,15 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{6154F5B6-1728-4305-A17E-5281E2CE3EDA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{6154F5B6-1728-4305-A17E-5281E2CE3EDA}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{6154F5B6-1728-4305-A17E-5281E2CE3EDA}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{6154F5B6-1728-4305-A17E-5281E2CE3EDA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6311504D-9633-4D34-8689-FB9D345BE553}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6311504D-9633-4D34-8689-FB9D345BE553}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6311504D-9633-4D34-8689-FB9D345BE553}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6311504D-9633-4D34-8689-FB9D345BE553}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {21AA500D-1F2E-4ED3-AF6F-9F1FA8DA9AA3}
 	EndGlobalSection
 EndGlobal

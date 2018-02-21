@@ -6,12 +6,18 @@ using Hangfire.Realm.Extensions;
 using Hangfire.Realm.RealmObjects;
 using Hangfire.Storage;
 using Hangfire.Storage.Monitoring;
+using Realms;
 
 namespace Hangfire.Realm
 {
 	internal class RealmMonitoringApi : IMonitoringApi
     {
-		private readonly Realms.Realm _realm = Realms.Realm.GetInstance();
+	    private readonly Realms.Realm _realm;
+
+	    public RealmMonitoringApi(RealmJobStorageOptions options)
+	    {
+		    _realm = Realms.Realm.GetInstance(options.RealmConfiguration);
+	    }
 	    public IList<QueueWithTopEnqueuedJobsDto> Queues()
 	    {
 
@@ -57,7 +63,53 @@ namespace Hangfire.Realm
 
 	    public JobList<EnqueuedJobDto> EnqueuedJobs(string queue, int @from, int perPage)
 	    {
-		    throw new NotImplementedException();
+
+		    /*
+			 var jobObjectIds = jobIds.Select(ObjectId.Parse);
+            var jobs = connection.Job
+                .Find(Builders<JobDto>.Filter.In(_ => _.Id, jobObjectIds))
+                .ToList();
+
+            var filterBuilder = Builders<JobQueueDto>.Filter;
+            var enqueuedJobs = connection.JobQueue
+                .Find(filterBuilder.In(_ => _.JobId, jobs.Select(job => job.Id)) &
+                      (filterBuilder.Not(filterBuilder.Exists(_ => _.FetchedAt)) | filterBuilder.Eq(_ => _.FetchedAt, null)))
+                .ToList();
+
+            var jobsFiltered = enqueuedJobs
+                .Select(jq => jobs.FirstOrDefault(job => job.Id == jq.JobId));
+
+            var joinedJobs = jobsFiltered
+                .Where(job => job != null)
+                .Select(job =>
+                {
+                    var state = job.StateHistory.LastOrDefault();
+                    return new JobDetailedDto
+                    {
+                        Id = job.Id,
+                        InvocationData = job.InvocationData,
+                        Arguments = job.Arguments,
+                        CreatedAt = job.CreatedAt,
+                        ExpireAt = job.ExpireAt,
+                        FetchedAt = null,
+                        StateName = job.StateName,
+                        StateReason = state?.Reason,
+                        StateData = state?.Data
+                    };
+                })
+                .ToList();
+
+            return DeserializeJobs(
+                joinedJobs,
+                (sqlJob, job, stateData) => new EnqueuedJobDto
+                {
+                    Job = job,
+                    State = sqlJob.StateName,
+                    EnqueuedAt = sqlJob.StateName == EnqueuedState.StateName
+                        ? JobHelper.DeserializeNullableDateTime(stateData["EnqueuedAt"])
+                        : null
+                });
+			 */
 	    }
 
 	    public JobList<FetchedJobDto> FetchedJobs(string queue, int @from, int perPage)

@@ -30,9 +30,32 @@ namespace Hangfire.Realm.Extensions
 
 	    public static JobList<EnqueuedJobDto> GetEnqueuedJobs(this Realms.Realm realm, IEnumerable<string> jobIds)
 	    {
-
-			/*
-			 var jobObjectIds = jobIds.Select(ObjectId.Parse);
+		    var jobs = realm.All<Job>().Where(j => jobIds.Contains(j.Id)).ToList();
+		    var enqueuedJobs = realm.All<JobQueue>().Where(q => jobs.Select(j => j.Id).Contains(q.JobId) && q.FetchedAt == null)
+			    .ToList();
+		    var jobsFiltered = enqueuedJobs
+			    .Select(jq => jobs.FirstOrDefault(job => job.Id == jq.JobId));
+		    var joinedJobs = jobsFiltered
+			    .Where(job => job != null)
+			    .Select(job =>
+			    {
+				    var state = job.StateHistory.LastOrDefault();
+				    return new JobDetailedDto
+				    {
+					    Id = job.Id,
+					    InvocationData = job.InvocationData,
+					    Arguments = job.Arguments,
+					    CreatedAt = job.CreatedAt,
+					    ExpireAt = job.ExpireAt,
+					    FetchedAt = null,
+					    StateName = job.StateName,
+					    StateReason = state?.Reason,
+					    StateData = state?.Data
+				    };
+			    })
+			    .ToList();
+		    /*
+		     var jobObjectIds = jobIds.Select(ObjectId.Parse);
             var jobs = connection.Job
                 .Find(Builders<JobDto>.Filter.In(_ => _.Id, jobObjectIds))
                 .ToList();
@@ -76,7 +99,7 @@ namespace Hangfire.Realm.Extensions
                         ? JobHelper.DeserializeNullableDateTime(stateData["EnqueuedAt"])
                         : null
                 });
-			 */
+		     */
 	    }
     }
 }
