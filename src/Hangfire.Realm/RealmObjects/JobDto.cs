@@ -5,7 +5,7 @@ using Realms;
 
 namespace Hangfire.Realm.RealmObjects
 {
-	internal class Job : RealmObject
+	internal class JobDto : RealmObject
     {
 		[PrimaryKey]
 	    public string Id { get; set; }
@@ -16,12 +16,12 @@ namespace Hangfire.Realm.RealmObjects
 
 	    public string Arguments { get; set; }
 
-	    public Dictionary<string, string> Parameters { get; set; } = new Dictionary<string, string>();
+	    public KeyValueDto[] Parameters { get; set; } = new KeyValueDto[0];
 
-	    public State[] StateHistory { get; set; } = new State[0];
+	    public StateDto[] StateHistory { get; set; } = new StateDto[0];
 
-	    public DateTime CreatedAt { get; set; }
+	    public DateTimeOffset CreatedAt { get; set; }
 
-	    public DateTime? ExpireAt { get; set; }
+	    public DateTimeOffset? ExpireAt { get; set; }
     }
 }

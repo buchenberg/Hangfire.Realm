@@ -1,16 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
+using Realms;
 
 namespace Hangfire.Realm.RealmObjects
 {
-	internal class State
+	internal class StateDto : RealmObject
     {
 	    public string Name { get; set; }
 
 	    public string Reason { get; set; }
 
-	    public DateTime CreatedAt { get; set; }
+	    public DateTimeOffset CreatedAt { get; set; }
 
-	    public Dictionary<string, string> Data { get; set; }
+	    public KeyValueDto[] Data { get; set; }
     }
 }
