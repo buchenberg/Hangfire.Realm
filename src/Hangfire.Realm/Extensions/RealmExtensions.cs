@@ -14,29 +14,29 @@ namespace Hangfire.Realm.Extensions
 		public static IList<string> GetEnqueuedJobIds(this Realms.Realm realm, string queue, int from, int perPage)
 		{
 			return realm
-				.All<JobQueueDto>()
+				.All<JobQueueRealmObject>()
 				.Where(q => q.Queue == queue && q.FetchedAt == null)
 				.Skip(from)
 				.Take(perPage)
 				.Select(q => q.JobId)
-				.Where(jobQueueId => realm.All<JobDto>().Any(j => j.Id == jobQueueId && j.StateHistory.Length > 0))
+				.Where(jobQueueId => realm.All<JobRealmObject>().Any(j => j.Id == jobQueueId && j.StateHistory.Length > 0))
 				.ToList();
 		}
 
 		public static (int enqueuedCount, int fetchedCount) GetEnqueuedAndFetchedCount(this Realms.Realm realm, string queue)
 		{
-			var enqueuedCount = realm.All<JobQueueDto>().Count(q => q.Queue == queue && q.FetchedAt == null);
+			var enqueuedCount = realm.All<JobQueueRealmObject>().Count(q => q.Queue == queue && q.FetchedAt == null);
 
-			var fetchedCount = realm.All<JobQueueDto>().Count(q => q.Queue == queue && q.FetchedAt != null);
+			var fetchedCount = realm.All<JobQueueRealmObject>().Count(q => q.Queue == queue && q.FetchedAt != null);
 			
 			return (enqueuedCount, fetchedCount);
 		}
 	   
 	    public static JobList<EnqueuedJobDto> GetEnqueuedJobs(this Realms.Realm realm, IEnumerable<string> jobIds)
 	    {
-		    var jobs = realm.All<JobDto>().Where(j => jobIds.Contains(j.Id)).ToList();
+		    var jobs = realm.All<JobRealmObject>().Where(j => jobIds.Contains(j.Id)).ToList();
 		    
-		    var enqueuedJobs = realm.All<JobQueueDto>().Where(q => jobs.Select(j => j.Id).Contains(q.JobId) && q.FetchedAt == null)
+		    var enqueuedJobs = realm.All<JobQueueRealmObject>().Where(q => jobs.Select(j => j.Id).Contains(q.JobId) && q.FetchedAt == null)
 			    .ToList();
 		    
 		    var jobsFiltered = enqueuedJobs
@@ -56,6 +56,14 @@ namespace Hangfire.Realm.Extensions
 		    
 		    return new JobList<EnqueuedJobDto>(result);
 	    }
+
+	    public static IList<string> GetQueues(this Realms.Realm realm)
+	    {
+		    return realm
+			    .All<JobQueueRealmObject>()
+			    .Select(j => j.Queue)
+			    .ToArray();
+	    }
 	    
 	    private static Job DeserializeJob(string invocationData, string arguments)
 	    {
@@ -72,7 +80,7 @@ namespace Hangfire.Realm.Extensions
 		    }
 	    }
 
-	    private static DateTime? GetEnqueudAt(JobDto job)
+	    private static DateTime? GetEnqueudAt(JobRealmObject job)
 	    {
 		    var state = job.StateHistory.LastOrDefault();
 		    return job.StateName == EnqueuedState.StateName

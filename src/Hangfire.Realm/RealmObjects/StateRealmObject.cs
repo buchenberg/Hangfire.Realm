@@ -4,7 +4,7 @@ using Realms;
 
 namespace Hangfire.Realm.RealmObjects
 {
-	internal class StateDto : RealmObject
+	internal class StateRealmObject : RealmObject
     {
 	    public string Name { get; set; }
 
@@ -12,6 +12,6 @@ namespace Hangfire.Realm.RealmObjects
 
 	    public DateTimeOffset CreatedAt { get; set; }
 
-	    public KeyValueDto[] Data { get; set; }
+	    public KeyValueRealmObject[] Data { get; set; }
     }
 }
