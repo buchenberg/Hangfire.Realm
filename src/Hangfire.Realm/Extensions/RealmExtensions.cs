@@ -64,6 +64,84 @@ namespace Hangfire.Realm.Extensions
 			    .Select(j => j.Queue)
 			    .ToArray();
 	    }
+
+	    public static IList<string> GetFetchedJobIds(this Realms.Realm realm, string queue, int from, int perPage)
+	    {
+		    var fetchedJobIds = realm
+			    .All<JobQueueRealmObject>()
+			    .Where(j => j.Queue == queue && j.FetchedAt != null)
+			    .Skip(from)
+			    .Take(perPage)
+			    .Select(j => j.JobId)
+			    .Where(jobId => realm.All<JobRealmObject>().Any(_ => _.Id == jobId))
+			    .ToList();
+
+		    return fetchedJobIds;
+	    }
+	    public static JobList<FetchedJobDto> GetFetchedJobs(this Realms.Realm realm, IEnumerable<string> jobIds)
+	    {
+		    var jobs = realm.All<JobRealmObject>().Where(j => jobIds.Contains(j.Id)).ToList();
+
+		    var jobIdToJobQueueMap = realm
+			    .All<JobQueueRealmObject>()
+			    .Where(q => jobs.Select(j => j.Id).Contains(q.JobId) && q.FetchedAt != null)
+			    .ToDictionary(kv => kv.JobId, kv => kv);
+			    
+		    
+		    var jobsFiltered = jobs.Where(job => jobIdToJobQueueMap.ContainsKey(job.Id));
+		    
+		    var joinedJobs = jobsFiltered
+			    .Select(job =>
+			    {
+				    var state = job.StateHistory.FirstOrDefault(s => s.Name == job.StateName);
+				    return new 
+				    {
+					    Id = job.Id,
+					    InvocationData = job.InvocationData,
+					    Arguments = job.Arguments,
+					    CreatedAt = job.CreatedAt,
+					    ExpireAt = job.ExpireAt,
+					    FetchedAt = (DateTimeOffset?)null,
+					    StateName = job.StateName,
+					    StateReason = state?.Reason,
+					    StateData = state?.Data
+				    };
+			    })
+			    .ToList();
+		    
+		    var result = new List<KeyValuePair<string, FetchedJobDto>>(joinedJobs.Count);
+
+		    foreach (var job in joinedJobs)
+		    {
+			    result.Add(new KeyValuePair<string, FetchedJobDto>(
+				    job.Id,
+				    new FetchedJobDto
+				    {
+					    Job = DeserializeJob(job.InvocationData, job.Arguments),
+					    State = job.StateName,
+					    FetchedAt = job.FetchedAt?.DateTime
+				    }));
+		    }
+
+		    return new JobList<FetchedJobDto>(result);
+	    }
+
+	    public static IList<JobRealmObject> GetJobsByStateName(this Realms.Realm realm, string stateName, int from, int count)
+	    {
+		    return realm
+			    .All<JobRealmObject>()
+			    .Where(j => j.StateName == ProcessingState.StateName)
+			    .OrderByDescending(j => j.CreatedAt)
+			    .Skip(from)
+			    .Take(count)
+			    .ToList();	    
+	    }
+
+	    public static long GetJobCountByStateName(this Realms.Realm realm, string stateName)
+	    {
+		    var count = realm.All<JobRealmObject>().Count(j => j.StateName == stateName);
+		    return count;
+	    }
 	    
 	    private static Job DeserializeJob(string invocationData, string arguments)
 	    {

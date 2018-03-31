@@ -146,72 +146,116 @@ namespace Hangfire.Realm
 
 		public JobList<EnqueuedJobDto> EnqueuedJobs(string queue, int @from, int perPage)
 		{
-			throw new NotImplementedException();
+			var jobIds = _realm.GetEnqueuedJobIds(queue, from, perPage);
+			var jobs = _realm.GetEnqueuedJobs(jobIds);
+			return jobs;
 		}
 
 		public JobList<FetchedJobDto> FetchedJobs(string queue, int @from, int perPage)
 		{
-			throw new NotImplementedException();
+			var jobIds = _realm.GetFetchedJobIds(queue, from, perPage);
+			var jobs = _realm.GetFetchedJobs(jobIds);
+			return jobs;
 		}
 
 		public JobList<ProcessingJobDto> ProcessingJobs(int @from, int count)
 		{
-			throw new NotImplementedException();
+			var jobs = _realm.GetJobsByStateName(ProcessingState.StateName, from, count);
+			
+			return GetJobs(jobs, (job, stateData, stateReason) => new ProcessingJobDto
+			{
+				Job = job,
+				ServerId = stateData.ContainsKey("ServerId") ? stateData["ServerId"] : stateData["ServerName"],
+				StartedAt = JobHelper.DeserializeDateTime(stateData["StartedAt"])
+			});
 		}
 
 		public JobList<ScheduledJobDto> ScheduledJobs(int @from, int count)
 		{
-			throw new NotImplementedException();
+			var jobs = _realm.GetJobsByStateName(ScheduledState.StateName, from, count);
+			
+			return GetJobs(jobs, (job, stateData, stateReason) => new ScheduledJobDto
+			{
+				Job = job,
+				EnqueueAt = JobHelper.DeserializeDateTime(stateData["EnqueueAt"]),
+				ScheduledAt = JobHelper.DeserializeDateTime(stateData["ScheduledAt"])
+			});
 		}
 
 		public JobList<SucceededJobDto> SucceededJobs(int @from, int count)
 		{
-			throw new NotImplementedException();
+			var jobs = _realm.GetJobsByStateName(SucceededState.StateName, from, count);
+			
+			return GetJobs(jobs, (job, stateData, stateReason) => new SucceededJobDto
+			{
+				Job = job,
+				Result = stateData.ContainsKey("Result") ? stateData["Result"] : null,
+				TotalDuration = stateData.ContainsKey("PerformanceDuration") && stateData.ContainsKey("Latency")
+					? (long?)long.Parse(stateData["PerformanceDuration"]) + (long?)long.Parse(stateData["Latency"])
+					: null,
+				SucceededAt = JobHelper.DeserializeNullableDateTime(stateData["SucceededAt"])
+			});
 		}
 
 		public JobList<FailedJobDto> FailedJobs(int @from, int count)
 		{
-			throw new NotImplementedException();
+			var jobs = _realm.GetJobsByStateName(FailedState.StateName, from, count);
+			
+			return GetJobs(jobs, (job, stateData, stateReason) => new FailedJobDto
+			{
+				Job = job,
+				Reason = stateReason,
+				ExceptionDetails = stateData["ExceptionDetails"],
+				ExceptionMessage = stateData["ExceptionMessage"],
+				ExceptionType = stateData["ExceptionType"],
+				FailedAt = JobHelper.DeserializeNullableDateTime(stateData["FailedAt"])
+			});
 		}
 
 		public JobList<DeletedJobDto> DeletedJobs(int @from, int count)
 		{
-			throw new NotImplementedException();
+			var jobs = _realm.GetJobsByStateName(DeletedState.StateName, from, count);
+			
+			return GetJobs(jobs, (job, stateData, stateReason) => new DeletedJobDto
+			{
+				Job = job,
+				DeletedAt = JobHelper.DeserializeNullableDateTime(stateData["DeletedAt"])
+			});
 		}
 
 		public long ScheduledCount()
 		{
-			throw new NotImplementedException();
+			return _realm.GetJobCountByStateName(ScheduledState.StateName);
 		}
 
 		public long EnqueuedCount(string queue)
 		{
-			throw new NotImplementedException();
+			return _realm.All<JobQueueRealmObject>().Count(j => j.Queue == queue && j.FetchedAt == null);
 		}
 
 		public long FetchedCount(string queue)
 		{
-			throw new NotImplementedException();
+			return _realm.All<JobQueueRealmObject>().Count(j => j.Queue == queue && j.FetchedAt != null);
 		}
 
 		public long FailedCount()
 		{
-			throw new NotImplementedException();
+			return _realm.GetJobCountByStateName(FailedState.StateName);
 		}
 
 		public long ProcessingCount()
 		{
-			throw new NotImplementedException();
+			return _realm.GetJobCountByStateName(ProcessingState.StateName);
 		}
 
 		public long SucceededListCount()
 		{
-			throw new NotImplementedException();
+			return _realm.GetJobCountByStateName(SucceededState.StateName);
 		}
 
 		public long DeletedListCount()
 		{
-			throw new NotImplementedException();
+			return _realm.GetJobCountByStateName(DeletedState.StateName);
 		}
 
 		public IDictionary<DateTime, long> SucceededByDatesCount()
@@ -234,6 +278,46 @@ namespace Hangfire.Realm
 			throw new NotImplementedException();
 		}
 
+		private static JobList<T> GetJobs<T>(IList<JobRealmObject> jobs, Func<Job, IDictionary<string, string>, string, T> createDto)
+		{
+			if (jobs == null)
+			{
+				throw new ArgumentNullException(nameof(jobs));
+			}
+			
+			var joinedJobs = jobs
+				.Select(job =>
+				{
+					var state = job
+						.StateHistory
+						.FirstOrDefault(s => s.Name == ProcessingState.StateName);
+
+					return new
+					{
+						Id = job.Id,
+						InvocationData = job.InvocationData,
+						Arguments = job.Arguments,
+						CreatedAt = job.CreatedAt,
+						ExpireAt = job.ExpireAt,
+						FetchedAt = (DateTimeOffset?)null,
+						StateName = job.StateName,
+						StateReason = state?.Reason,
+						StateData = state?.Data
+					};
+				})
+				.ToList();
+			
+			var result = new List<KeyValuePair<string, T>>(jobs.Count);
+			foreach (var joinedJob in joinedJobs)
+			{
+				var stateData = joinedJob.StateData.ToDictionary(s => s.Key, s => s.Value);
+				var job = DeserializeJob(joinedJob.InvocationData, joinedJob.Arguments);
+				result.Add(new KeyValuePair<string, T>(joinedJob.Id, createDto(job, stateData, joinedJob.StateReason)));
+			}
+			
+			return new JobList<T>(result);
+		}
+		
 		private static Job DeserializeJob(string invocationData, string arguments)
 		{
 			var data = JobHelper.FromJson<InvocationData>(invocationData);
