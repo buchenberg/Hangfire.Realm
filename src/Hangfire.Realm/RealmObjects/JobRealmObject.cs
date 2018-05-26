@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 using Realms;
 
 namespace Hangfire.Realm.RealmObjects
@@ -16,11 +15,11 @@ namespace Hangfire.Realm.RealmObjects
 
 	    public string Arguments { get; set; }
 
-	    public KeyValueRealmObject[] Parameters { get; set; } = new KeyValueRealmObject[0];
+	    public IList<KeyValueRealmObject> Parameters { get; } = new List<KeyValueRealmObject>();
 
-	    public StateRealmObject[] StateHistory { get; set; } = new StateRealmObject[0];
+	    public IList<StateRealmObject> StateHistory { get; } = new List<StateRealmObject>();
 
-	    public DateTimeOffset CreatedAt { get; set; }
+		public DateTimeOffset CreatedAt { get; set; }
 
 	    public DateTimeOffset? ExpireAt { get; set; }
     }

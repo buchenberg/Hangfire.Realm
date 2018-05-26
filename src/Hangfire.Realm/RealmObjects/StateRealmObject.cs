@@ -12,6 +12,6 @@ namespace Hangfire.Realm.RealmObjects
 
 	    public DateTimeOffset CreatedAt { get; set; }
 
-	    public KeyValueRealmObject[] Data { get; set; }
+	    public IList<KeyValueRealmObject> Data { get; } = new List<KeyValueRealmObject>();
     }
 }

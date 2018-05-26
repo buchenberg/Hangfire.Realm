@@ -14,9 +14,9 @@ namespace Hangfire.Realm
 	{
 		private readonly Realms.Realm _realm;
 
-		public RealmMonitoringApi(RealmJobStorageOptions options)
+		public RealmMonitoringApi(Realms.Realm realm)
 		{
-			_realm = Realms.Realm.GetInstance(options.RealmConfiguration);
+			_realm = realm;
 		}
 
 		public IList<QueueWithTopEnqueuedJobsDto> Queues()
@@ -46,8 +46,6 @@ namespace Hangfire.Realm
 
 			return result;
 		}
-
-
 
 		public IList<ServerDto> Servers()
 		{
@@ -127,12 +125,12 @@ namespace Hangfire.Realm
 			stats.Succeeded = _realm
 				.All<CounterRealmObject>()
 				.Where(c => c.Key == Constants.StatsSucceded)
-				.Sum(c => (long) c.Value);
+				.Sum(c => c.Value);
 
 			stats.Deleted = _realm
 				.All<CounterRealmObject>()
 				.Where(c => c.Key == Constants.StatsDeleted)
-				.Sum(c => (long) c.Value);
+				.Sum(c => c.Value);
 
 			stats.Recurring = _realm
 				.All<SetRealmObject>()
@@ -260,22 +258,22 @@ namespace Hangfire.Realm
 
 		public IDictionary<DateTime, long> SucceededByDatesCount()
 		{
-			throw new NotImplementedException();
+			return _realm.GetTimelineStats(SucceededState.StateName.ToLower());
 		}
 
 		public IDictionary<DateTime, long> FailedByDatesCount()
 		{
-			throw new NotImplementedException();
+			return _realm.GetTimelineStats(FailedState.StateName.ToLower());
 		}
 
 		public IDictionary<DateTime, long> HourlySucceededJobs()
 		{
-			throw new NotImplementedException();
+			return _realm.GetHourlyTimelineStats(SucceededState.StateName.ToLower());
 		}
 
 		public IDictionary<DateTime, long> HourlyFailedJobs()
 		{
-			throw new NotImplementedException();
+			return _realm.GetHourlyTimelineStats(FailedState.StateName.ToLower());
 		}
 
 		private static JobList<T> GetJobs<T>(IList<JobRealmObject> jobs, Func<Job, IDictionary<string, string>, string, T> createDto)
@@ -332,5 +330,7 @@ namespace Hangfire.Realm
 				return null;
 			}
 		}
+		
+		
 	}
 }

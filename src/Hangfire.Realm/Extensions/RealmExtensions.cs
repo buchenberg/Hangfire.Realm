@@ -19,7 +19,7 @@ namespace Hangfire.Realm.Extensions
 				.Skip(from)
 				.Take(perPage)
 				.Select(q => q.JobId)
-				.Where(jobQueueId => realm.All<JobRealmObject>().Any(j => j.Id == jobQueueId && j.StateHistory.Length > 0))
+				.Where(jobQueueId => realm.All<JobRealmObject>().Any(j => j.Id == jobQueueId && j.StateHistory.Count > 0))
 				.ToList();
 		}
 
@@ -141,6 +141,63 @@ namespace Hangfire.Realm.Extensions
 	    {
 		    var count = realm.All<JobRealmObject>().Count(j => j.StateName == stateName);
 		    return count;
+	    }
+	    
+	    public static Dictionary<DateTime, long> GetTimelineStats(this Realms.Realm realm, string type)
+	    {
+		    var endDate = DateTime.UtcNow.Date;
+		    var startDate = endDate.AddDays(-7);
+		    var dates = new List<DateTime>();
+
+		    while (startDate <= endDate)
+		    {
+			    dates.Add(endDate);
+			    endDate = endDate.AddDays(-1);
+		    }
+
+		    var stringDates = dates.Select(x => x.ToString("yyyy-MM-dd")).ToList();
+		    var keys = stringDates.Select(x => $"stats:{type}:{x}").ToList();
+
+		    return realm.CreateTimeLineStats(keys, dates);
+	    }
+	    
+	    public static Dictionary<DateTime, long> GetHourlyTimelineStats(this Realms.Realm realm, string type)
+	    {
+		    var endDate = DateTime.UtcNow;
+		    var dates = new List<DateTime>();
+		    for (var i = 0; i < 24; i++)
+		    {
+			    dates.Add(endDate);
+			    endDate = endDate.AddHours(-1);
+		    }
+
+		    var keys = dates.Select(x => $"stats:{type}:{x:yyyy-MM-dd-HH}").ToList();
+
+		    return realm.CreateTimeLineStats(keys, dates);
+	    }
+		
+	    private static Dictionary<DateTime, long> CreateTimeLineStats(this Realms.Realm realm,
+		    ICollection<string> keys, IList<DateTime> dates)
+	    {
+		    var valuesMap = realm.All<CounterRealmObject>()
+			    .Where(c => keys.Contains(c.Key))
+			    .ToList()
+			    .GroupBy(x => x.Key, x => x)
+			    .ToDictionary(x => x.Key, x => (long) x.Count());
+
+		    foreach (var key in keys.Where(key => !valuesMap.ContainsKey(key)))
+		    {
+			    valuesMap.Add(key, 0);
+		    }
+
+		    var result = new Dictionary<DateTime, long>();
+		    for (var i = 0; i < dates.Count; i++)
+		    {
+			    var value = valuesMap[valuesMap.Keys.ElementAt(i)];
+			    result.Add(dates[i], value);
+		    }
+
+		    return result;
 	    }
 	    
 	    private static Job DeserializeJob(string invocationData, string arguments)

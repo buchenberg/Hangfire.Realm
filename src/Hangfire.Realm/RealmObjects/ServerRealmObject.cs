@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Realms;
 
 namespace Hangfire.Realm.RealmObjects
@@ -12,7 +13,7 @@ namespace Hangfire.Realm.RealmObjects
         
         public int WorkerCount { get; set; }
 
-        public string[] Queues { get; set; }
+        public IList<string> Queues { get; } = new List<string>();
 
         public DateTimeOffset? StartedAt { get; set; }
     }
