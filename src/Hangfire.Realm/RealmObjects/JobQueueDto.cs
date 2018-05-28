@@ -3,10 +3,12 @@ using Realms;
 
 namespace Hangfire.Realm.RealmObjects
 {
-	internal class JobQueueRealmObject : RealmObject
+	internal class JobQueueDto : RealmObject, IEntity
     {
 		[PrimaryKey]
 	    public string Id { get; set; }
+
+	    public DateTimeOffset Created { get; set; }
 
 	    public string JobId { get; set; }
 

@@ -23,7 +23,7 @@ namespace Hangfire.Realm
 		{
 
 			var queues = _realm
-				.All<JobQueueRealmObject>()
+				.All<JobQueueDto>()
 				.Select(q => q.Queue)
 				.Distinct()
 				.ToList();
@@ -47,13 +47,13 @@ namespace Hangfire.Realm
 			return result;
 		}
 
-		public IList<ServerDto> Servers()
+		public IList<Storage.Monitoring.ServerDto> Servers()
 		{
 			var servers = _realm
-				.All<ServerRealmObject>()
+				.All<RealmObjects.ServerDto>()
 				.ToList()
 				.Select(s =>
-					new ServerDto
+					new Storage.Monitoring.ServerDto
 					{
 						Name = s.Id,
 						Heartbeat = s.LastHeartbeat?.DateTime,
@@ -69,7 +69,7 @@ namespace Hangfire.Realm
 		public JobDetailsDto JobDetails(string jobId)
 		{
 			var job = _realm
-				.All<JobRealmObject>()
+				.All<JobDto>()
 				.FirstOrDefault(j => j.Id == jobId);
 
 			if (job == null) return null;
@@ -77,7 +77,7 @@ namespace Hangfire.Realm
 			var history = job.StateHistory.Select(x => new StateHistoryDto
 				{
 					StateName = x.Name,
-					CreatedAt = x.CreatedAt.DateTime,
+					CreatedAt = x.Created.DateTime,
 					Reason = x.Reason,
 					Data = x.Data.ToDictionary(s => s.Key, s => s.Value)
 				})
@@ -86,20 +86,12 @@ namespace Hangfire.Realm
 
 			return new JobDetailsDto
 			{
-				CreatedAt = job.CreatedAt.DateTime,
+				CreatedAt = job.Created.DateTime,
 				Job = DeserializeJob(job.InvocationData, job.Arguments),
 				History = history,
 				Properties = job.Parameters.ToDictionary(s => s.Key, s => s.Value)
 			};
 		}
-
-		private static readonly string[] StatisticsStateNames =
-		{
-			EnqueuedState.StateName,
-			FailedState.StateName,
-			ProcessingState.StateName,
-			ScheduledState.StateName
-		};
 
 		public StatisticsDto GetStatistics()
 		{
@@ -107,8 +99,12 @@ namespace Hangfire.Realm
 
 
 			var countByStates = _realm
-				.All<JobRealmObject>()
-				.Where(job => StatisticsStateNames.Contains(job.StateName))
+				.All<JobDto>()
+				.Where(job => job.StateName == EnqueuedState.StateName || 
+				              job.StateName == FailedState.StateName || 
+				              job.StateName == ProcessingState.StateName || 
+				              job.StateName == ScheduledState.StateName)
+				.ToList()
 				.GroupBy(job => job.StateName)
 				.ToDictionary(group => group.Key, jobs => jobs.Count());
 
@@ -120,20 +116,22 @@ namespace Hangfire.Realm
 			stats.Processing = GetCountIfExists(ProcessingState.StateName);
 			stats.Scheduled = GetCountIfExists(ScheduledState.StateName);
 
-			stats.Servers = _realm.All<ServerRealmObject>().Count();
+			stats.Servers = _realm.All<RealmObjects.ServerDto>().Count();
 
 			stats.Succeeded = _realm
-				.All<CounterRealmObject>()
+				.All<CounterDto>()
 				.Where(c => c.Key == Constants.StatsSucceded)
+				.ToList()
 				.Sum(c => c.Value);
 
 			stats.Deleted = _realm
-				.All<CounterRealmObject>()
+				.All<CounterDto>()
 				.Where(c => c.Key == Constants.StatsDeleted)
+				.ToList()
 				.Sum(c => c.Value);
 
 			stats.Recurring = _realm
-				.All<SetRealmObject>()
+				.All<SetDto>()
 				.Count(s => s.Key == Constants.RecurringJobs);
 
 
@@ -228,12 +226,12 @@ namespace Hangfire.Realm
 
 		public long EnqueuedCount(string queue)
 		{
-			return _realm.All<JobQueueRealmObject>().Count(j => j.Queue == queue && j.FetchedAt == null);
+			return _realm.All<JobQueueDto>().Count(j => j.Queue == queue && j.FetchedAt == null);
 		}
 
 		public long FetchedCount(string queue)
 		{
-			return _realm.All<JobQueueRealmObject>().Count(j => j.Queue == queue && j.FetchedAt != null);
+			return _realm.All<JobQueueDto>().Count(j => j.Queue == queue && j.FetchedAt != null);
 		}
 
 		public long FailedCount()
@@ -276,7 +274,7 @@ namespace Hangfire.Realm
 			return _realm.GetHourlyTimelineStats(FailedState.StateName.ToLower());
 		}
 
-		private static JobList<T> GetJobs<T>(IList<JobRealmObject> jobs, Func<Job, IDictionary<string, string>, string, T> createDto)
+		private static JobList<T> GetJobs<T>(IList<JobDto> jobs, Func<Job, IDictionary<string, string>, string, T> createDto)
 		{
 			if (jobs == null)
 			{
@@ -295,7 +293,7 @@ namespace Hangfire.Realm
 						Id = job.Id,
 						InvocationData = job.InvocationData,
 						Arguments = job.Arguments,
-						CreatedAt = job.CreatedAt,
+						CreatedAt = job.Created,
 						ExpireAt = job.ExpireAt,
 						FetchedAt = (DateTimeOffset?)null,
 						StateName = job.StateName,

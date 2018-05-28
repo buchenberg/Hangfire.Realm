@@ -4,10 +4,12 @@ using Realms;
 
 namespace Hangfire.Realm.RealmObjects
 {
-	internal class JobRealmObject : RealmObject
+	internal class JobDto : RealmObject, IEntity
     {
 		[PrimaryKey]
 	    public string Id { get; set; }
+
+	    public DateTimeOffset Created { get; set; }
 
 	    public string StateName { get; set; }
 
@@ -15,11 +17,9 @@ namespace Hangfire.Realm.RealmObjects
 
 	    public string Arguments { get; set; }
 
-	    public IList<KeyValueRealmObject> Parameters { get; } = new List<KeyValueRealmObject>();
+	    public IList<KeyValueDto> Parameters { get; }
 
-	    public IList<StateRealmObject> StateHistory { get; } = new List<StateRealmObject>();
-
-		public DateTimeOffset CreatedAt { get; set; }
+	    public IList<StateDto> StateHistory { get; }
 
 	    public DateTimeOffset? ExpireAt { get; set; }
     }
