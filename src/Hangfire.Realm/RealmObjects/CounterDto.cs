@@ -3,7 +3,7 @@ using Realms;
 
 namespace Hangfire.Realm.RealmObjects
 {
-    public class CounterDto : RealmObject, IEntity
+    public class CounterDto : RealmObject
     {
         [PrimaryKey]
         public string Id { get; set; }

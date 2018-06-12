@@ -46,9 +46,9 @@ namespace Hangfire.Realm.Extensions
 	   
 	    public static JobList<EnqueuedJobDto> GetEnqueuedJobs(this Realms.Realm realm, IList<string> jobIds)
 	    {
-		    var jobs = FindByJobIds<JobDto>(realm, jobIds);
+		    var jobs = FindJobs(realm, jobIds);
 
-		    var enqueuedJobs = FindByJobIds<JobQueueDto>(realm, jobIds, q => q.FetchedAt == null); 
+		    var enqueuedJobs = FindEnqueuedJobs(realm, jobIds);
 			    
 		    var jobsFiltered = enqueuedJobs
 			    .Select(jq => jobs.FirstOrDefault(job => job.Id == jq.JobId));
@@ -91,53 +91,86 @@ namespace Hangfire.Realm.Extensions
 		    return fetchedJobIds;
 	    }
 
-	    private static IEnumerable<TEntity> FindByJobIds<TEntity>(Realms.Realm realm, ICollection<string> jobIds, Expression<Func<TEntity, bool>> additionalExpression = null)
-			where TEntity : RealmObject, IEntity
+	    private static IList<JobQueueDto> FindEnqueuedJobs(Realms.Realm realm, ICollection<string> jobIds)
 	    {
 		    if (jobIds.Count == 0)
 		    {
-			    return Enumerable.Empty<TEntity>();
+			    return Enumerable.Empty<JobQueueDto>().ToList();
 		    }
 		    
-		    var allJobs = realm.All<TEntity>();
+		    var allJobs = realm.All<JobQueueDto>();
 		    
-		    var param = Expression.Parameter(typeof(TEntity), "p");
+		    var param = Expression.Parameter(typeof(JobQueueDto), "p");
 
-		    Expression predicate = null;
-		    // left side of the == will be the same for each clause we add in the loop
+		    // ReSharper disable AssignNullToNotNullAttribute
+		    var fetchedAtExp =
+			    Expression.Property(param, typeof(JobQueueDto).GetProperty(nameof(JobQueueDto.FetchedAt)));
+		    var jobIdExp = Expression.Property(param, typeof(JobQueueDto).GetProperty(nameof(JobQueueDto.JobId)));
+		    // ReSharper enable AssignNullToNotNullAttribute
+
+		    var filterExp = CreateOrElsExpression(jobIdExp, jobIds);
+
+		    if (filterExp == null)
+		    {
+			    return Enumerable.Empty<JobQueueDto>().ToList();
+		    }
+		    
+		   var equalExp = Expression.Equal(fetchedAtExp, Expression.Constant(null));
+		    
+		    filterExp = Expression.AndAlso(equalExp, filterExp);
+
+		    return Query(allJobs, filterExp, param);
+	    }
+	    
+	    private static IList<JobDto> FindJobs(Realms.Realm realm, ICollection<string> jobIds)
+	    {
+		    if (jobIds.Count == 0)
+		    {
+			    return Enumerable.Empty<JobDto>().ToList();
+		    }
+		    
+		    var allJobs = realm.All<JobDto>();
+		    
+		    var param = Expression.Parameter(typeof(JobDto), "p");
+
 		    // ReSharper disable once AssignNullToNotNullAttribute
-		    var left = Expression.Property(param, typeof(TEntity).GetProperty(nameof(IEntity.Id)));
+		    var jobIdExp = Expression.Property(param, typeof(JobDto).GetProperty(nameof(JobDto.Id)));
+
+		    var filterExp = CreateOrElsExpression(jobIdExp, jobIds);
+
+		    return Query(allJobs, filterExp, param);
+	    }
+
+	    private static Expression CreateOrElsExpression(MemberExpression memberExpression, IEnumerable<string> jobIds)
+	    {
+		    Expression orElse = null;
 		    foreach (var jobId in jobIds)
 		    {
-			    // Create an expression tree that represents the expression 'p.UserKey == idsToMatch[n]'.
-			    var right = Expression.Constant(jobId);
-			    var anotherEqual = Expression.Equal(left, right);
-			    predicate = predicate == null ? anotherEqual : Expression.OrElse(predicate, anotherEqual);
+			    var equal = Expression.Equal(memberExpression, Expression.Constant(jobId));
+			    orElse = orElse == null ? equal : Expression.OrElse(orElse, equal);
 		    }
 
-		    if (predicate == null)
+		    return orElse;
+	    }
+	    private static IList<T> Query<T>(IQueryable<T> queryable, Expression filter, ParameterExpression param)
+	    {
+		    if (filter == null)
 		    {
-			    return Enumerable.Empty<TEntity>();
-		    }
-
-		    if (additionalExpression != null)
-		    {
-			    predicate = Expression.And(predicate, additionalExpression);
+			    return Enumerable.Empty<T>().ToList();
 		    }
 		    
 		    var whereCallExpression = Expression.Call(
 			    typeof(Queryable),
-			    "Where",
-			    new[] {typeof(string)},
-			    allJobs.Expression,
-			    Expression.Lambda<Func<TEntity, bool>>(predicate, param));
+			    nameof(Queryable.Where),
+			    new[] {typeof(T)},
+			    queryable.Expression,
+			    Expression.Lambda<Func<T, bool>>(filter, param));
 
 		    
 		    // Create an executable query from the expression tree.
-		    return allJobs.Provider.CreateQuery<TEntity>(whereCallExpression).ToList();
-
+		    return queryable.Provider.CreateQuery<T>(whereCallExpression).ToList();
 	    }
-
+	    
 	    public static JobList<FetchedJobDto> GetFetchedJobs(this Realms.Realm realm, IEnumerable<string> jobIds)
 	    {
 		    var jobs = realm.All<JobDto>().Where(j => jobIds.Contains(j.Id)).ToList();

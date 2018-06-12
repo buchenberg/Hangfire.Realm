@@ -3,7 +3,7 @@ using Realms;
 
 namespace Hangfire.Realm.RealmObjects
 {
-	internal class JobQueueDto : RealmObject, IEntity
+	internal class JobQueueDto : RealmObject
     {
 		[PrimaryKey]
 	    public string Id { get; set; }

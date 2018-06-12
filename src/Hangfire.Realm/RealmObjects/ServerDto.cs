@@ -4,7 +4,7 @@ using Realms;
 
 namespace Hangfire.Realm.RealmObjects
 {
-    public class ServerDto : RealmObject, IEntity
+    public class ServerDto : RealmObject
     {
         [PrimaryKey]
         public string Id { get; set; }

@@ -3,7 +3,7 @@ using Realms;
 
 namespace Hangfire.Realm.RealmObjects
 {
-    public class SetDto : RealmObject, IEntity
+    public class SetDto : RealmObject
     {
         [PrimaryKey]
         public string Id { get; set; }
