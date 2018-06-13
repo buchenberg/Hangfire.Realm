@@ -23,7 +23,7 @@ namespace Hangfire.Realm.Extensions
 			    .Where(q => q.Queue == queue && q.FetchedAt == null))
 		    {
 			    if (from > count++) continue;
-			    if (count > perPage) return jobIds;
+			    if (jobIds.Count >= perPage) return jobIds;
 			    
 			    var job = realm.Find<JobDto>(jobQueueDto.JobId);
 			    if (job != null && job.StateHistory.Count > 0)
@@ -48,7 +48,7 @@ namespace Hangfire.Realm.Extensions
 	    {
 		    var jobs = FindJobs(realm, jobIds);
 
-		    var enqueuedJobs = FindEnqueuedJobs(realm, jobIds);
+		    var enqueuedJobs = FindQueuedJobs(realm, jobIds, enqueued: true);
 			    
 		    var jobsFiltered = enqueuedJobs
 			    .Select(jq => jobs.FirstOrDefault(job => job.Id == jq.JobId));
@@ -79,108 +79,33 @@ namespace Hangfire.Realm.Extensions
 
 	    public static IList<string> GetFetchedJobIds(this Realms.Realm realm, string queue, int from, int perPage)
 	    {
-		    var fetchedJobIds = realm
+		    var fetchedJobIds = new List<string>();
+		    var count = 0;
+		    foreach (var jobQueueDto in realm
 			    .All<JobQueueDto>()
-			    .Where(j => j.Queue == queue && j.FetchedAt != null)
-			    .Skip(from)
-			    .Take(perPage)
-			    .Select(j => j.JobId)
-			    .Where(jobId => realm.All<JobDto>().Any(_ => _.Id == jobId))
-			    .ToList();
-
+			    .OrderByDescending(q => q.Created)
+			    .Where(j => j.Queue == queue && j.FetchedAt != null))
+		    {
+			    if (from > count++) continue;
+			    if (fetchedJobIds.Count >= perPage) return fetchedJobIds;
+			    
+			    var job = realm.Find<JobDto>(jobQueueDto.JobId);
+			    if (job != null)
+			    {
+				    fetchedJobIds.Add(jobQueueDto.JobId);
+			    }
+		    }
 		    return fetchedJobIds;
 	    }
 
-	    private static IList<JobQueueDto> FindEnqueuedJobs(Realms.Realm realm, ICollection<string> jobIds)
+	    public static JobList<FetchedJobDto> GetFetchedJobs(this Realms.Realm realm, ICollection<string> jobIds)
 	    {
-		    if (jobIds.Count == 0)
-		    {
-			    return Enumerable.Empty<JobQueueDto>().ToList();
-		    }
-		    
-		    var allJobs = realm.All<JobQueueDto>();
-		    
-		    var param = Expression.Parameter(typeof(JobQueueDto), "p");
+		    var jobs = FindJobs(realm, jobIds);
+		    var foundJobIds = jobs.Select(j => j.Id).ToList();
 
-		    // ReSharper disable AssignNullToNotNullAttribute
-		    var fetchedAtExp =
-			    Expression.Property(param, typeof(JobQueueDto).GetProperty(nameof(JobQueueDto.FetchedAt)));
-		    var jobIdExp = Expression.Property(param, typeof(JobQueueDto).GetProperty(nameof(JobQueueDto.JobId)));
-		    // ReSharper enable AssignNullToNotNullAttribute
-
-		    var filterExp = CreateOrElsExpression(jobIdExp, jobIds);
-
-		    if (filterExp == null)
-		    {
-			    return Enumerable.Empty<JobQueueDto>().ToList();
-		    }
-		    
-		   var equalExp = Expression.Equal(fetchedAtExp, Expression.Constant(null));
-		    
-		    filterExp = Expression.AndAlso(equalExp, filterExp);
-
-		    return Query(allJobs, filterExp, param);
-	    }
-	    
-	    private static IList<JobDto> FindJobs(Realms.Realm realm, ICollection<string> jobIds)
-	    {
-		    if (jobIds.Count == 0)
-		    {
-			    return Enumerable.Empty<JobDto>().ToList();
-		    }
-		    
-		    var allJobs = realm.All<JobDto>();
-		    
-		    var param = Expression.Parameter(typeof(JobDto), "p");
-
-		    // ReSharper disable once AssignNullToNotNullAttribute
-		    var jobIdExp = Expression.Property(param, typeof(JobDto).GetProperty(nameof(JobDto.Id)));
-
-		    var filterExp = CreateOrElsExpression(jobIdExp, jobIds);
-
-		    return Query(allJobs, filterExp, param);
-	    }
-
-	    private static Expression CreateOrElsExpression(MemberExpression memberExpression, IEnumerable<string> jobIds)
-	    {
-		    Expression orElse = null;
-		    foreach (var jobId in jobIds)
-		    {
-			    var equal = Expression.Equal(memberExpression, Expression.Constant(jobId));
-			    orElse = orElse == null ? equal : Expression.OrElse(orElse, equal);
-		    }
-
-		    return orElse;
-	    }
-	    private static IList<T> Query<T>(IQueryable<T> queryable, Expression filter, ParameterExpression param)
-	    {
-		    if (filter == null)
-		    {
-			    return Enumerable.Empty<T>().ToList();
-		    }
-		    
-		    var whereCallExpression = Expression.Call(
-			    typeof(Queryable),
-			    nameof(Queryable.Where),
-			    new[] {typeof(T)},
-			    queryable.Expression,
-			    Expression.Lambda<Func<T, bool>>(filter, param));
-
-		    
-		    // Create an executable query from the expression tree.
-		    return queryable.Provider.CreateQuery<T>(whereCallExpression).ToList();
-	    }
-	    
-	    public static JobList<FetchedJobDto> GetFetchedJobs(this Realms.Realm realm, IEnumerable<string> jobIds)
-	    {
-		    var jobs = realm.All<JobDto>().Where(j => jobIds.Contains(j.Id)).ToList();
-
-		    var jobIdToJobQueueMap = realm
-			    .All<JobQueueDto>()
-			    .Where(q => jobs.Select(j => j.Id).Contains(q.JobId) && q.FetchedAt != null)
-			    .ToDictionary(kv => kv.JobId, kv => kv);
-			    
-		    
+		    var jobIdToJobQueueMap = FindQueuedJobs(realm, foundJobIds, enqueued: false)
+			    .ToDictionary(kv => kv.JobId, kv => kv); 
+		  
 		    var jobsFiltered = jobs.Where(job => jobIdToJobQueueMap.ContainsKey(job.Id));
 		    
 		    var joinedJobs = jobsFiltered
@@ -269,6 +194,88 @@ namespace Hangfire.Realm.Extensions
 		    return realm.CreateTimeLineStats(keys, dates);
 	    }
 		
+	    private static IList<JobDto> FindJobs(Realms.Realm realm, ICollection<string> jobIds)
+	    {
+		    if (jobIds.Count == 0)
+		    {
+			    return Enumerable.Empty<JobDto>().ToList();
+		    }
+		    
+		    var allJobs = realm.All<JobDto>();
+		    
+		    var param = Expression.Parameter(typeof(JobDto), "p");
+
+		    // ReSharper disable once AssignNullToNotNullAttribute
+		    var jobIdExp = Expression.Property(param, typeof(JobDto).GetProperty(nameof(JobDto.Id)));
+
+		    var filterExp = CreateOrElsExpression(jobIdExp, jobIds);
+
+		    return Query(allJobs, filterExp, param);
+	    }
+	    
+	    private static IList<JobQueueDto> FindQueuedJobs(Realms.Realm realm, ICollection<string> jobIds, bool enqueued)
+	    {
+		    if (jobIds.Count == 0)
+		    {
+			    return Enumerable.Empty<JobQueueDto>().ToList();
+		    }
+		    
+		    var allJobs = realm.All<JobQueueDto>();
+		    
+		    var param = Expression.Parameter(typeof(JobQueueDto), "p");
+
+		    // ReSharper disable AssignNullToNotNullAttribute
+		    var fetchedAtExp =
+			    Expression.Property(param, typeof(JobQueueDto).GetProperty(nameof(JobQueueDto.FetchedAt)));
+		    var jobIdExp = Expression.Property(param, typeof(JobQueueDto).GetProperty(nameof(JobQueueDto.JobId)));
+		    // ReSharper enable AssignNullToNotNullAttribute
+
+		    var filterExp = CreateOrElsExpression(jobIdExp, jobIds);
+
+		    if (filterExp == null)
+		    {
+			    return Enumerable.Empty<JobQueueDto>().ToList();
+		    }
+
+		    var equalExp = enqueued ? 
+			    Expression.Equal(fetchedAtExp, Expression.Constant(null)) : 
+			    Expression.NotEqual(fetchedAtExp, Expression.Constant(null));
+		    
+		    filterExp = Expression.AndAlso(equalExp, filterExp);
+
+		    return Query(allJobs, filterExp, param);
+	    }
+
+	    private static Expression CreateOrElsExpression(MemberExpression memberExpression, IEnumerable<string> jobIds)
+	    {
+		    Expression orElse = null;
+		    foreach (var jobId in jobIds)
+		    {
+			    var equal = Expression.Equal(memberExpression, Expression.Constant(jobId));
+			    orElse = orElse == null ? equal : Expression.OrElse(orElse, equal);
+		    }
+
+		    return orElse;
+	    }
+	    private static IList<T> Query<T>(IQueryable<T> queryable, Expression filter, ParameterExpression param)
+	    {
+		    if (filter == null)
+		    {
+			    return Enumerable.Empty<T>().ToList();
+		    }
+		    
+		    var whereCallExpression = Expression.Call(
+			    typeof(Queryable),
+			    nameof(Queryable.Where),
+			    new[] {typeof(T)},
+			    queryable.Expression,
+			    Expression.Lambda<Func<T, bool>>(filter, param));
+
+		    
+		    // Create an executable query from the expression tree.
+		    return queryable.Provider.CreateQuery<T>(whereCallExpression).ToList();
+	    }
+	    
 	    private static Dictionary<DateTime, long> CreateTimeLineStats(this Realms.Realm realm,
 		    ICollection<string> keys, IList<DateTime> dates)
 	    {

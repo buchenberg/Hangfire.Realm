@@ -56,7 +56,6 @@ namespace Hangfire.Realm.Tests
 		public void GetStatistics_JobsExist_ReturnsExpectedCounts()
 		{
 			// ARRANGE
-			;
 			CreateJobInState(EnqueuedState.StateName, DateTime.UtcNow.Subtract(TimeSpan.FromSeconds(1)));
 			CreateJobInState(EnqueuedState.StateName, DateTime.UtcNow.Subtract(TimeSpan.FromSeconds(2)));
 			CreateJobInState(FailedState.StateName, DateTime.UtcNow.Subtract(TimeSpan.FromSeconds(3)));
@@ -128,135 +127,114 @@ namespace Hangfire.Realm.Tests
 		    Assert.AreEqual(1, resultList.Count);
 	    }
 	    
+	    [Test]
+	    public void EnqueuedJobs_OneJobExistsThatIsFetched_ReturnsEmpty()
+	    {
+		    // ARRANGE
+		    CreateJobInState(FetchedStateName);
+
+		    // ACT
+		    var resultList = _monitoringApi.EnqueuedJobs(DefaultQueue, From, PerPage);
+
+		    // ASSERT
+		    Assert.IsEmpty(resultList);
+	    }
+	    
+	    [Test]
+	    public void EnqueuedJobs_MultipleJobsExistsInFetchedAndUnfetchedStates_ReturnsUnfetchedJobsOnly()
+	    {
+		    // ARRANGE
+		    CreateJobInState( EnqueuedState.StateName);
+		    CreateJobInState( EnqueuedState.StateName);
+		    CreateJobInState(FetchedStateName);
+
+		    // ACT
+		    var resultList = _monitoringApi.EnqueuedJobs(DefaultQueue, From, PerPage);
+
+		    // ASSERT
+		    Assert.AreEqual(2, resultList.Count);
+	    }
+	    
+	    [Test]
+	    public void FetchedJobs_ReturnsEmpty_WhenThereIsNoJobs()
+	    {
+		    // ARRANGE
+		    
+		    // ACT
+		    var resultList = _monitoringApi.FetchedJobs(DefaultQueue, From, PerPage);
+
+		    // ASSERT
+		    Assert.IsEmpty(resultList);
+	    }
+	    
+	    [Test]
+	    public void FetchedJobs_OneJobExistsThatIsFetched_ReturnsSingleJob()
+	    {
+		    // ARRANGE
+		    CreateJobInState(FetchedStateName);
+
+		    var resultList = _monitoringApi.FetchedJobs(DefaultQueue, From, PerPage);
+
+		    Assert.AreEqual(1, resultList.Count);
+	    }
+	    
+	    [Test]
+	    public void FetchedJobs_OneJobExistsThatIsNotFetched_ReturnsEmpty()
+	    {
+		    CreateJobInState(EnqueuedState.StateName);
+
+		    var resultList = _monitoringApi.FetchedJobs(DefaultQueue, From, PerPage);
+
+		    Assert.IsEmpty(resultList);
+	    }
+	    
+	    [Test]
+	    public void FetchedJobs_MultipleJobsExistsInFetchedAndUnfetchedStates_ReturnsFetchedJobsOnly()
+	    {
+		    CreateJobInState(FetchedStateName);
+		    CreateJobInState(FetchedStateName);
+		    CreateJobInState(EnqueuedState.StateName);
+
+		    var resultList = _monitoringApi.FetchedJobs(DefaultQueue, From, PerPage);
+
+		    Assert.AreEqual(2, resultList.Count);
+	    }
+	    
+	    [Test]
+	    public void FetchedJobs_MultipleJobsPaged_ReturnsCorrectJobsOnly()
+	    {
+		    // ARRANGE
+		    var job1 = CreateJobInState(FetchedStateName, created: DateTime.Now.Subtract(TimeSpan.FromSeconds(6))); //first
+		    var job2 = CreateJobInState(FetchedStateName, created: DateTime.Now.Subtract(TimeSpan.FromSeconds(5)));
+		    var job3 = CreateJobInState(FetchedStateName, created: DateTime.Now.Subtract(TimeSpan.FromSeconds(4)));
+		    var job4 = CreateJobInState(FetchedStateName, created: DateTime.Now.Subtract(TimeSpan.FromSeconds(3)));
+		    var job5 = CreateJobInState(FetchedStateName, created: DateTime.Now.Subtract(TimeSpan.FromSeconds(2)));
+		    var job6 = CreateJobInState(FetchedStateName, created: DateTime.Now.Subtract(TimeSpan.FromSeconds(1))); // last
+
+		    // ACT 
+		    var resultList = _monitoringApi.FetchedJobs(DefaultQueue, from: 2, perPage: 3);
+
+		    // ASSERT (skip the two newest, take 3)
+		    Assert.AreEqual(3, resultList.Count);
+		    Assert.AreEqual(job2.Id, resultList[0].Key);
+		    Assert.AreEqual(job3.Id, resultList[1].Key);
+		    Assert.AreEqual(job4.Id, resultList[2].Key);
+	    }
+	    
 		#if false
-		[Fact, CleanDatabase]
-		
 
 		[Fact, CleanDatabase]
 		
 
 		
 
-		[Fact, CleanDatabase]
-		public void EnqueuedJobs_ReturnsEmpty_WhenOneJobExistsThatIsFetched()
-		{
-			UseMonitoringApi((database, monitoringApi) =>
-			{
-				var fetchedJob = CreateJobInState(database, ObjectId.GenerateNewId(1), FetchedStateName);
+		
 
-				var jobIds = new List<string> { fetchedJob.Id.ToString() };
-				_persistentJobQueueMonitoringApi.Setup(x => x
-					.GetEnqueuedJobIds(DefaultQueue, From, PerPage))
-					.Returns(jobIds);
+		
 
-				var resultList = monitoringApi.EnqueuedJobs(DefaultQueue, From, PerPage);
+		
 
-				Assert.Empty(resultList);
-			});
-		}
-
-		[Fact, CleanDatabase]
-		public void EnqueuedJobs_ReturnsUnfetchedJobsOnly_WhenMultipleJobsExistsInFetchedAndUnfetchedStates()
-		{
-			UseMonitoringApi((database, monitoringApi) =>
-			{
-				var unfetchedJob = CreateJobInState(database, ObjectId.GenerateNewId(1), EnqueuedState.StateName);
-				var unfetchedJob2 = CreateJobInState(database, ObjectId.GenerateNewId(2), EnqueuedState.StateName);
-				var fetchedJob = CreateJobInState(database, ObjectId.GenerateNewId(3), FetchedStateName);
-
-				var jobIds = new List<string>
-				{
-					unfetchedJob.Id.ToString(),
-					unfetchedJob2.Id.ToString(),
-					fetchedJob.Id.ToString()
-				};
-				_persistentJobQueueMonitoringApi.Setup(x => x
-					.GetEnqueuedJobIds(DefaultQueue, From, PerPage))
-					.Returns(jobIds);
-
-				var resultList = monitoringApi.EnqueuedJobs(DefaultQueue, From, PerPage);
-
-				Assert.Equal(2, resultList.Count);
-			});
-		}
-
-		[Fact, CleanDatabase]
-		public void FetchedJobs_ReturnsEmpty_WhenThereIsNoJobs()
-		{
-			UseMonitoringApi((database, monitoringApi) =>
-			{
-				var jobIds = new List<string>();
-
-				_persistentJobQueueMonitoringApi.Setup(x => x
-					.GetFetchedJobIds(DefaultQueue, From, PerPage))
-					.Returns(jobIds);
-
-				var resultList = monitoringApi.FetchedJobs(DefaultQueue, From, PerPage);
-
-				Assert.Empty(resultList);
-			});
-		}
-
-		[Fact, CleanDatabase]
-		public void FetchedJobs_ReturnsSingleJob_WhenOneJobExistsThatIsFetched()
-		{
-			UseMonitoringApi((database, monitoringApi) =>
-			{
-				var fetchedJob = CreateJobInState(database, ObjectId.GenerateNewId(1), FetchedStateName);
-
-				var jobIds = new List<string> { fetchedJob.Id.ToString() };
-				_persistentJobQueueMonitoringApi.Setup(x => x
-					.GetFetchedJobIds(DefaultQueue, From, PerPage))
-					.Returns(jobIds);
-
-				var resultList = monitoringApi.FetchedJobs(DefaultQueue, From, PerPage);
-
-				Assert.Single(resultList);
-			});
-		}
-
-		[Fact, CleanDatabase]
-		public void FetchedJobs_ReturnsEmpty_WhenOneJobExistsThatIsNotFetched()
-		{
-			UseMonitoringApi((database, monitoringApi) =>
-			{
-				var unfetchedJob = CreateJobInState(database, ObjectId.GenerateNewId(1), EnqueuedState.StateName);
-
-				var jobIds = new List<string> { unfetchedJob.Id.ToString() };
-				_persistentJobQueueMonitoringApi.Setup(x => x
-					.GetFetchedJobIds(DefaultQueue, From, PerPage))
-					.Returns(jobIds);
-
-				var resultList = monitoringApi.FetchedJobs(DefaultQueue, From, PerPage);
-
-				Assert.Empty(resultList);
-			});
-		}
-
-		[Fact, CleanDatabase]
-		public void FetchedJobs_ReturnsFetchedJobsOnly_WhenMultipleJobsExistsInFetchedAndUnfetchedStates()
-		{
-			UseMonitoringApi((database, monitoringApi) =>
-			{
-				var fetchedJob = CreateJobInState(database, ObjectId.GenerateNewId(1), FetchedStateName);
-				var fetchedJob2 = CreateJobInState(database, ObjectId.GenerateNewId(2), FetchedStateName);
-				var unfetchedJob = CreateJobInState(database, ObjectId.GenerateNewId(3), EnqueuedState.StateName);
-
-				var jobIds = new List<string>
-				{
-					fetchedJob.Id.ToString(),
-					fetchedJob2.Id.ToString(),
-					unfetchedJob.Id.ToString()
-				};
-				_persistentJobQueueMonitoringApi.Setup(x => x
-					.GetFetchedJobIds(DefaultQueue, From, PerPage))
-					.Returns(jobIds);
-
-				var resultList = monitoringApi.FetchedJobs(DefaultQueue, From, PerPage);
-
-				Assert.Equal(2, resultList.Count);
-			});
-		}
+		
 
 		[Fact, CleanDatabase]
 		public void ProcessingJobs_ReturnsProcessingJobsOnly_WhenMultipleJobsExistsInProcessingSucceededAndEnqueuedState()
@@ -470,10 +448,15 @@ namespace Hangfire.Realm.Tests
 			});
 		}
 		#endif
-		private JobDto CreateJobInState(string stateName, DateTime created, Func<JobDto, JobDto> visitor = null)
+		private JobDto CreateJobInState(string stateName, DateTime created = default(DateTime))
 		{
 			var job = Job.FromExpression(() => HangfireTestJobs.SampleMethod("wrong"));
 
+			if (created == default(DateTime))
+			{
+				created = DateTime.Now;
+			}
+			
 			Dictionary<string, string> stateData;
 
 			if (stateName == EnqueuedState.StateName)
@@ -528,15 +511,7 @@ namespace Hangfire.Realm.Tests
 			};
 			jobDto.StateHistory.Add(jobState);
 			
-			if (visitor != null)
-			{
-				jobDto = visitor(jobDto);
-			}
-			_realm.Write(() =>
-			{
-				_realm.Add(jobDto);
-				
-			});
+			_realm.Write(() =>_realm.Add(jobDto));
 			
 			var jobQueueDto = new JobQueueDto
 			{

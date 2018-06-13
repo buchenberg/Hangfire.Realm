@@ -22,5 +22,10 @@ namespace Hangfire.Realm.RealmObjects
 	    public IList<StateDto> StateHistory { get; }
 
 	    public DateTimeOffset? ExpireAt { get; set; }
+
+	    public override string ToString()
+	    {
+		    return Id + " " + StateName;
+	    }
     }
 }
