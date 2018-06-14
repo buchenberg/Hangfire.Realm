@@ -97,7 +97,6 @@ namespace Hangfire.Realm
 		{
 			var stats = new StatisticsDto();
 
-
 			var countByStates = _realm
 				.All<JobDto>()
 				.Where(job => job.StateName == EnqueuedState.StateName || 
@@ -118,17 +117,8 @@ namespace Hangfire.Realm
 
 			stats.Servers = _realm.All<RealmObjects.ServerDto>().Count();
 
-			stats.Succeeded = _realm
-				.All<CounterDto>()
-				.Where(c => c.Key == Constants.StatsSucceded)
-				.ToList()
-				.Sum(c => c.Value);
-
-			stats.Deleted = _realm
-				.All<CounterDto>()
-				.Where(c => c.Key == Constants.StatsDeleted)
-				.ToList()
-				.Sum(c => c.Value);
+			stats.Succeeded = _realm.Find<CounterDto>(Constants.StatsSucceded)?.Value ?? 0;
+			stats.Deleted = _realm.Find<CounterDto>(Constants.StatsDeleted)?.Value ?? 0;
 
 			stats.Recurring = _realm
 				.All<SetDto>()
@@ -158,7 +148,7 @@ namespace Hangfire.Realm
 		{
 			var jobs = _realm.GetJobsByStateName(ProcessingState.StateName, from, count);
 			
-			return GetJobs(jobs, (job, stateData, stateReason) => new ProcessingJobDto
+			return GetJobs(jobs, ProcessingState.StateName, (job, stateData, stateReason) => new ProcessingJobDto
 			{
 				Job = job,
 				ServerId = stateData.ContainsKey("ServerId") ? stateData["ServerId"] : stateData["ServerName"],
@@ -170,7 +160,7 @@ namespace Hangfire.Realm
 		{
 			var jobs = _realm.GetJobsByStateName(ScheduledState.StateName, from, count);
 			
-			return GetJobs(jobs, (job, stateData, stateReason) => new ScheduledJobDto
+			return GetJobs(jobs, ScheduledState.StateName, (job, stateData, stateReason) => new ScheduledJobDto
 			{
 				Job = job,
 				EnqueueAt = JobHelper.DeserializeDateTime(stateData["EnqueueAt"]),
@@ -182,7 +172,7 @@ namespace Hangfire.Realm
 		{
 			var jobs = _realm.GetJobsByStateName(SucceededState.StateName, from, count);
 			
-			return GetJobs(jobs, (job, stateData, stateReason) => new SucceededJobDto
+			return GetJobs(jobs, SucceededState.StateName, (job, stateData, stateReason) => new SucceededJobDto
 			{
 				Job = job,
 				Result = stateData.ContainsKey("Result") ? stateData["Result"] : null,
@@ -197,7 +187,7 @@ namespace Hangfire.Realm
 		{
 			var jobs = _realm.GetJobsByStateName(FailedState.StateName, from, count);
 			
-			return GetJobs(jobs, (job, stateData, stateReason) => new FailedJobDto
+			return GetJobs(jobs, FailedState.StateName, (job, stateData, stateReason) => new FailedJobDto
 			{
 				Job = job,
 				Reason = stateReason,
@@ -212,7 +202,7 @@ namespace Hangfire.Realm
 		{
 			var jobs = _realm.GetJobsByStateName(DeletedState.StateName, from, count);
 			
-			return GetJobs(jobs, (job, stateData, stateReason) => new DeletedJobDto
+			return GetJobs(jobs, DeletedState.StateName, (job, stateData, stateReason) => new DeletedJobDto
 			{
 				Job = job,
 				DeletedAt = JobHelper.DeserializeNullableDateTime(stateData["DeletedAt"])
@@ -274,7 +264,7 @@ namespace Hangfire.Realm
 			return _realm.GetHourlyTimelineStats(FailedState.StateName.ToLower());
 		}
 
-		private static JobList<T> GetJobs<T>(IList<JobDto> jobs, Func<Job, IDictionary<string, string>, string, T> createDto)
+		private static JobList<T> GetJobs<T>(IList<JobDto> jobs, string stateName, Func<Job, IDictionary<string, string>, string, T> createDto)
 		{
 			if (jobs == null)
 			{
@@ -286,7 +276,7 @@ namespace Hangfire.Realm
 				{
 					var state = job
 						.StateHistory
-						.FirstOrDefault(s => s.Name == ProcessingState.StateName);
+						.FirstOrDefault(s => s.Name == stateName);
 
 					return new
 					{

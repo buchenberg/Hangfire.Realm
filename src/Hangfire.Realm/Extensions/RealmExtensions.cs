@@ -151,7 +151,7 @@ namespace Hangfire.Realm.Extensions
 		    
 		    foreach (var job in realm
 			    .All<JobDto>()
-			    .Where(j => j.StateName == ProcessingState.StateName)
+			    .Where(j => j.StateName == stateName)
 			    .OrderByDescending(j => j.Created))
 		    {
 			    if (from > count++) continue;
@@ -181,9 +181,9 @@ namespace Hangfire.Realm.Extensions
 		    }
 
 		    var stringDates = dates.Select(x => x.ToString("yyyy-MM-dd")).ToList();
-		    var keys = stringDates.Select(x => $"stats:{type}:{x}").ToList();
+		    var names = stringDates.Select(x => $"stats:{type}:{x}").ToList();
 
-		    return realm.CreateTimeLineStats(keys, dates);
+		    return realm.CreateTimeLineStats(names, dates);
 	    }
 	    
 	    public static Dictionary<DateTime, long> GetHourlyTimelineStats(this Realms.Realm realm, string type)
@@ -196,9 +196,9 @@ namespace Hangfire.Realm.Extensions
 			    endDate = endDate.AddHours(-1);
 		    }
 
-		    var keys = dates.Select(x => $"stats:{type}:{x:yyyy-MM-dd-HH}").ToList();
+		    var names = dates.Select(x => $"stats:{type}:{x:yyyy-MM-dd-HH}").ToList();
 
-		    return realm.CreateTimeLineStats(keys, dates);
+		    return realm.CreateTimeLineStats(names, dates);
 	    }
 		
 	    private static IList<JobDto> FindJobs(Realms.Realm realm, ICollection<string> jobIds)
@@ -286,17 +286,17 @@ namespace Hangfire.Realm.Extensions
 	    private static Dictionary<DateTime, long> CreateTimeLineStats(this Realms.Realm realm,
 		    ICollection<string> keys, IList<DateTime> dates)
 	    {
-		    var valuesMap = realm.All<CounterDto>()
-			    .Where(c => keys.Contains(c.Key))
-			    .ToList()
-			    .GroupBy(x => x.Key, x => x)
-			    .ToDictionary(x => x.Key, x => (long) x.Count());
-
-		    foreach (var key in keys.Where(key => !valuesMap.ContainsKey(key)))
+		    var valuesMap = new Dictionary<string, long>();
+		    foreach (var key in keys)
 		    {
-			    valuesMap.Add(key, 0);
+			    valuesMap[key] = 0;
+			    var counter = realm.Find<CounterDto>(key);
+			    if (counter != null)
+			    {
+				    valuesMap[key] = counter.Value;
+			    }
 		    }
-
+		    
 		    var result = new Dictionary<DateTime, long>();
 		    for (var i = 0; i < dates.Count; i++)
 		    {
