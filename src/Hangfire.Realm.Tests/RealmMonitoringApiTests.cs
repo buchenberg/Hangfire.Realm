@@ -221,64 +221,37 @@ namespace Hangfire.Realm.Tests
 		    Assert.AreEqual(job4.Id, resultList[2].Key);
 	    }
 	    
+	    [Test]
+	    public void ProcessingJobs_MultipleJobsExistsInProcessingSucceededAndEnqueuedState_ReturnsProcessingJobsOnly()
+	    {
+		    // ARRANGE
+		    CreateJobInState(ProcessingState.StateName);
+
+		    CreateJobInState(SucceededState.StateName, visitor: jobDto =>
+		    {
+			    var processingState = new StateDto()
+			    {
+				    Name = ProcessingState.StateName,
+				    Reason = null,
+				    Created = DateTime.UtcNow,
+			    };
+				    
+			    processingState.Data.Add(new KeyValueDto("ServerId", Guid.NewGuid().ToString()));
+			    processingState.Data.Add(new KeyValueDto("StartedAt",
+				    JobHelper.SerializeDateTime(DateTime.UtcNow.Subtract(TimeSpan.FromMilliseconds(500)))));
+			    
+			    jobDto.StateHistory.Insert(0, processingState);
+		    });
+
+		    CreateJobInState(EnqueuedState.StateName);
+
+		    // ACT
+		    var resultList = _monitoringApi.ProcessingJobs(From, PerPage);
+
+		    Assert.AreEqual(1, resultList.Count);
+	    }
+	    
 		#if false
-
-		[Fact, CleanDatabase]
-		
-
-		
-
-		
-
-		
-
-		
-
-		
-
-		[Fact, CleanDatabase]
-		public void ProcessingJobs_ReturnsProcessingJobsOnly_WhenMultipleJobsExistsInProcessingSucceededAndEnqueuedState()
-		{
-			UseMonitoringApi((database, monitoringApi) =>
-			{
-				var processingJob = CreateJobInState(database, ObjectId.GenerateNewId(1), ProcessingState.StateName);
-
-				var succeededJob = CreateJobInState(database, ObjectId.GenerateNewId(2), SucceededState.StateName, jobDto =>
-				{
-					var processingState = new StateDto()
-					{
-						Name = ProcessingState.StateName,
-						Reason = null,
-						CreatedAt = DateTime.UtcNow,
-						Data = new Dictionary<string, string>
-						{
-							["ServerId"] = Guid.NewGuid().ToString(),
-							["StartedAt"] =
-							JobHelper.SerializeDateTime(DateTime.UtcNow.Subtract(TimeSpan.FromMilliseconds(500)))
-						}
-					};
-					var succeededState = jobDto.StateHistory[0];
-					jobDto.StateHistory = new[] { processingState, succeededState };
-					return jobDto;
-				});
-
-				var enqueuedJob = CreateJobInState(database, ObjectId.GenerateNewId(3), EnqueuedState.StateName);
-
-				var jobIds = new List<string>
-				{
-					processingJob.Id.ToString(),
-					succeededJob.Id.ToString(),
-					enqueuedJob.Id.ToString()
-				};
-				_persistentJobQueueMonitoringApi.Setup(x => x
-						.GetFetchedJobIds(DefaultQueue, From, PerPage))
-					.Returns(jobIds);
-
-				var resultList = monitoringApi.ProcessingJobs(From, PerPage);
-
-				Assert.Single(resultList);
-			});
-		}
 
 		[Fact, CleanDatabase]
 		public void FailedJobs_ReturnsFailedJobs_InDescendingOrder()
@@ -448,7 +421,8 @@ namespace Hangfire.Realm.Tests
 			});
 		}
 		#endif
-		private JobDto CreateJobInState(string stateName, DateTime created = default(DateTime))
+	    
+		private JobDto CreateJobInState(string stateName, DateTime created = default(DateTime), Action<JobDto> visitor = null)
 		{
 			var job = Job.FromExpression(() => HangfireTestJobs.SampleMethod("wrong"));
 
@@ -510,6 +484,8 @@ namespace Hangfire.Realm.Tests
 				StateName = stateName
 			};
 			jobDto.StateHistory.Add(jobState);
+			
+			visitor?.Invoke(jobDto);
 			
 			_realm.Write(() =>_realm.Add(jobDto));
 			

@@ -144,15 +144,22 @@ namespace Hangfire.Realm.Extensions
 		    return new JobList<FetchedJobDto>(result);
 	    }
 
-	    public static IList<JobDto> GetJobsByStateName(this Realms.Realm realm, string stateName, int from, int count)
+	    public static IList<JobDto> GetJobsByStateName(this Realms.Realm realm, string stateName, int from, int perPage)
 	    {
-		    return realm
+		    var jobs = new List<JobDto>();
+		    var count = 0;
+		    
+		    foreach (var job in realm
 			    .All<JobDto>()
 			    .Where(j => j.StateName == ProcessingState.StateName)
-			    .OrderByDescending(j => j.Created)
-			    .Skip(from)
-			    .Take(count)
-			    .ToList();	    
+			    .OrderByDescending(j => j.Created))
+		    {
+			    if (from > count++) continue;
+			    if (jobs.Count >= perPage) return jobs;
+			    
+			    jobs.Add(job);
+		    }
+		    return jobs;    
 	    }
 
 	    public static long GetJobCountByStateName(this Realms.Realm realm, string stateName)
