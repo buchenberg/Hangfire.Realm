@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using Hangfire.Common;
-using Hangfire.Realm.RealmObjects;
+using Hangfire.Realm.Dtos;
 using Hangfire.States;
 using Hangfire.Storage;
 using Hangfire.Storage.Monitoring;

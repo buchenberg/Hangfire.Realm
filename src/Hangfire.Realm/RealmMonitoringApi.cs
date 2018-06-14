@@ -2,11 +2,12 @@
 using System.Collections.Generic;
 using System.Linq;
 using Hangfire.Common;
+using Hangfire.Realm.Dtos;
 using Hangfire.Realm.Extensions;
-using Hangfire.Realm.RealmObjects;
 using Hangfire.States;
 using Hangfire.Storage;
 using Hangfire.Storage.Monitoring;
+using ServerDto = Hangfire.Realm.Dtos.ServerDto;
 
 namespace Hangfire.Realm
 {
@@ -50,7 +51,7 @@ namespace Hangfire.Realm
 		public IList<Storage.Monitoring.ServerDto> Servers()
 		{
 			var servers = _realm
-				.All<RealmObjects.ServerDto>()
+				.All<ServerDto>()
 				.ToList()
 				.Select(s =>
 					new Storage.Monitoring.ServerDto
@@ -58,7 +59,7 @@ namespace Hangfire.Realm
 						Name = s.Id,
 						Heartbeat = s.LastHeartbeat?.DateTime,
 						Queues = s.Queues,
-						StartedAt = s.StartedAt.Value.DateTime,
+						StartedAt = s.StartedAt?.DateTime ?? default(DateTime),
 						WorkersCount = s.WorkerCount
 					})
 				.ToList();
@@ -115,7 +116,7 @@ namespace Hangfire.Realm
 			stats.Processing = GetCountIfExists(ProcessingState.StateName);
 			stats.Scheduled = GetCountIfExists(ScheduledState.StateName);
 
-			stats.Servers = _realm.All<RealmObjects.ServerDto>().Count();
+			stats.Servers = _realm.All<ServerDto>().Count();
 
 			stats.Succeeded = _realm.Find<CounterDto>(Constants.StatsSucceded)?.Value ?? 0;
 			stats.Deleted = _realm.Find<CounterDto>(Constants.StatsDeleted)?.Value ?? 0;
@@ -130,21 +131,21 @@ namespace Hangfire.Realm
 			return stats;
 		}
 
-		public JobList<EnqueuedJobDto> EnqueuedJobs(string queue, int @from, int perPage)
+		public JobList<EnqueuedJobDto> EnqueuedJobs(string queue, int from, int perPage)
 		{
 			var jobIds = _realm.GetEnqueuedJobIds(queue, from, perPage);
 			var jobs = _realm.GetEnqueuedJobs(jobIds);
 			return jobs;
 		}
 
-		public JobList<FetchedJobDto> FetchedJobs(string queue, int @from, int perPage)
+		public JobList<FetchedJobDto> FetchedJobs(string queue, int from, int perPage)
 		{
 			var jobIds = _realm.GetFetchedJobIds(queue, from, perPage);
 			var jobs = _realm.GetFetchedJobs(jobIds);
 			return jobs;
 		}
 
-		public JobList<ProcessingJobDto> ProcessingJobs(int @from, int count)
+		public JobList<ProcessingJobDto> ProcessingJobs(int from, int count)
 		{
 			var jobs = _realm.GetJobsByStateName(ProcessingState.StateName, from, count);
 			
@@ -156,7 +157,7 @@ namespace Hangfire.Realm
 			});
 		}
 
-		public JobList<ScheduledJobDto> ScheduledJobs(int @from, int count)
+		public JobList<ScheduledJobDto> ScheduledJobs(int from, int count)
 		{
 			var jobs = _realm.GetJobsByStateName(ScheduledState.StateName, from, count);
 			
@@ -168,7 +169,7 @@ namespace Hangfire.Realm
 			});
 		}
 
-		public JobList<SucceededJobDto> SucceededJobs(int @from, int count)
+		public JobList<SucceededJobDto> SucceededJobs(int from, int count)
 		{
 			var jobs = _realm.GetJobsByStateName(SucceededState.StateName, from, count);
 			
@@ -183,7 +184,7 @@ namespace Hangfire.Realm
 			});
 		}
 
-		public JobList<FailedJobDto> FailedJobs(int @from, int count)
+		public JobList<FailedJobDto> FailedJobs(int from, int count)
 		{
 			var jobs = _realm.GetJobsByStateName(FailedState.StateName, from, count);
 			
@@ -198,7 +199,7 @@ namespace Hangfire.Realm
 			});
 		}
 
-		public JobList<DeletedJobDto> DeletedJobs(int @from, int count)
+		public JobList<DeletedJobDto> DeletedJobs(int from, int count)
 		{
 			var jobs = _realm.GetJobsByStateName(DeletedState.StateName, from, count);
 			

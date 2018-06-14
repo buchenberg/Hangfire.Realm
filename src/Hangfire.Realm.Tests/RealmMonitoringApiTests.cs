@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Hangfire.Common;
-using Hangfire.Realm.RealmObjects;
+using Hangfire.Realm.Dtos;
 using Hangfire.Realm.Tests.Utils;
 using Hangfire.States;
 using Hangfire.Storage;
@@ -232,8 +232,7 @@ namespace Hangfire.Realm.Tests
 			    var processingState = new StateDto()
 			    {
 				    Name = ProcessingState.StateName,
-				    Reason = null,
-				    Created = DateTime.UtcNow,
+				    Reason = null
 			    };
 				    
 			    processingState.Data.Add(new KeyValueDto("ServerId", Guid.NewGuid().ToString()));
@@ -398,8 +397,7 @@ namespace Hangfire.Realm.Tests
 			var jobState = new StateDto()
 			{
 				Name = stateName,
-				Reason = null,
-				Created = DateTime.UtcNow
+				Reason = null
 			};
 			foreach (var item in stateData)
 			{
@@ -427,7 +425,6 @@ namespace Hangfire.Realm.Tests
 			var jobQueueDto = new JobQueueDto
 			{
 				Id = Guid.NewGuid().ToString(),
-				Created = DateTime.UtcNow,
 				FetchedAt = null,
 				JobId = jobDto.Id,
 				Queue = DefaultQueue

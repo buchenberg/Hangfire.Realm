@@ -8,89 +8,84 @@ using Hangfire.Storage;
 
 namespace Hangfire.Realm
 {
-	internal class RealmStorageConnection : IStorageConnection
+	internal class RealmStorageConnection : JobStorageConnection
     {
-	    public void Dispose()
+	    public override IWriteOnlyTransaction CreateWriteTransaction()
 	    {
 		    throw new NotImplementedException();
 	    }
 
-	    public IWriteOnlyTransaction CreateWriteTransaction()
+	    public override IDisposable AcquireDistributedLock(string resource, TimeSpan timeout)
 	    {
 		    throw new NotImplementedException();
 	    }
 
-	    public IDisposable AcquireDistributedLock(string resource, TimeSpan timeout)
+	    public override string CreateExpiredJob(Job job, IDictionary<string, string> parameters, DateTime createdAt, TimeSpan expireIn)
 	    {
 		    throw new NotImplementedException();
 	    }
 
-	    public string CreateExpiredJob(Job job, IDictionary<string, string> parameters, DateTime createdAt, TimeSpan expireIn)
+	    public override IFetchedJob FetchNextJob(string[] queues, CancellationToken cancellationToken)
 	    {
 		    throw new NotImplementedException();
 	    }
 
-	    public IFetchedJob FetchNextJob(string[] queues, CancellationToken cancellationToken)
+	    public override void SetJobParameter(string id, string name, string value)
 	    {
 		    throw new NotImplementedException();
 	    }
 
-	    public void SetJobParameter(string id, string name, string value)
+	    public override string GetJobParameter(string id, string name)
 	    {
 		    throw new NotImplementedException();
 	    }
 
-	    public string GetJobParameter(string id, string name)
+	    public override JobData GetJobData(string jobId)
 	    {
 		    throw new NotImplementedException();
 	    }
 
-	    public JobData GetJobData(string jobId)
+	    public override StateData GetStateData(string jobId)
 	    {
 		    throw new NotImplementedException();
 	    }
 
-	    public StateData GetStateData(string jobId)
+	    public override void AnnounceServer(string serverId, ServerContext context)
 	    {
 		    throw new NotImplementedException();
 	    }
 
-	    public void AnnounceServer(string serverId, ServerContext context)
+	    public override void RemoveServer(string serverId)
 	    {
 		    throw new NotImplementedException();
 	    }
 
-	    public void RemoveServer(string serverId)
+	    public override void Heartbeat(string serverId)
 	    {
 		    throw new NotImplementedException();
 	    }
 
-	    public void Heartbeat(string serverId)
+	    public override int RemoveTimedOutServers(TimeSpan timeOut)
 	    {
 		    throw new NotImplementedException();
 	    }
 
-	    public int RemoveTimedOutServers(TimeSpan timeOut)
+	    public override HashSet<string> GetAllItemsFromSet(string key)
 	    {
 		    throw new NotImplementedException();
 	    }
 
-	    public HashSet<string> GetAllItemsFromSet(string key)
+	    public override string GetFirstByLowestScoreFromSet(string key, double fromScore, double toScore)
 	    {
 		    throw new NotImplementedException();
 	    }
 
-	    public string GetFirstByLowestScoreFromSet(string key, double fromScore, double toScore)
+	    public override void SetRangeInHash(string key, IEnumerable<KeyValuePair<string, string>> keyValuePairs)
 	    {
 		    throw new NotImplementedException();
 	    }
 
-	    public void SetRangeInHash(string key, IEnumerable<KeyValuePair<string, string>> keyValuePairs)
-	    {
-		    throw new NotImplementedException();
-	    }
-
-	    public Dictionary<string, string> GetAllEntriesFromHash(string key)
+	    public override Dictionary<string, string> GetAllEntriesFromHash(string key)
 	    {
 		    throw new NotImplementedException();
 	    }

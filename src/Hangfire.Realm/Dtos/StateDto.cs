@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using Realms;
 
-namespace Hangfire.Realm.RealmObjects
+namespace Hangfire.Realm.Dtos
 {
 	internal class StateDto : RealmObject
     {
@@ -10,7 +10,7 @@ namespace Hangfire.Realm.RealmObjects
 
 	    public string Reason { get; set; }
 
-	    public DateTimeOffset Created { get; set; }
+	    public DateTimeOffset Created { get; set; } = DateTimeOffset.Now;
 
 	    public IList<KeyValueDto> Data { get; }
     }

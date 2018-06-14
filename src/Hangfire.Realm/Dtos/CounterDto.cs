@@ -1,7 +1,7 @@
 ﻿using System;
 using Realms;
 
-namespace Hangfire.Realm.RealmObjects
+namespace Hangfire.Realm.Dtos
 {
     public class CounterDto : RealmObject
     {
@@ -9,5 +9,7 @@ namespace Hangfire.Realm.RealmObjects
         public string Key { get; set; }
         
         public RealmInteger<long> Value { get; set; }
+        
+        public DateTimeOffset? ExpireIn { get; set; }
     }
 }

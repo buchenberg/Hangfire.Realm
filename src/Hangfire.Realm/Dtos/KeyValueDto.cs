@@ -1,6 +1,6 @@
 ﻿using Realms;
 
-namespace Hangfire.Realm.RealmObjects
+namespace Hangfire.Realm.Dtos
 {
     public class KeyValueDto : RealmObject
     {
