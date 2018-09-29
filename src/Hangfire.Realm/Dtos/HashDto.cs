@@ -1,10 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Realms;
 
 namespace Hangfire.Realm.Dtos
 {
-    public class SetDto : RealmObject
+    public class HashDto : RealmObject
     {
         [PrimaryKey]
         public string Key { get; set; }
@@ -13,6 +13,6 @@ namespace Hangfire.Realm.Dtos
         
         public DateTimeOffset? ExpireIn { get; set; }
 
-        public IList<ScoreDto> Scores { get; set; }
+        public IList<KeyValueDto> Fields { get; set; }
     }
 }

@@ -77,7 +77,10 @@ namespace Hangfire.Realm
             QueueCommand(r =>
             {
                 var counter = r.Find<CounterDto>(key);
-                if (counter == null) return;
+                if (counter == null)
+                {
+                    counter = r.Add(new CounterDto {Key = key, Value = 0});
+                };
 
                 counter.Value.Increment();
             });
@@ -88,7 +91,10 @@ namespace Hangfire.Realm
             QueueCommand(r =>
             {
                 var counter = r.Find<CounterDto>(key);
-                if (counter == null) return;
+                if (counter == null)
+                {
+                    counter = r.Add(new CounterDto {Key = key, Value = 0});
+                };
                 counter.ExpireIn = DateTimeOffset.UtcNow.Add(expireIn);   
                 counter.Value.Increment();
             });
@@ -125,20 +131,23 @@ namespace Hangfire.Realm
         {
             QueueCommand(r =>
             {
-                var set = r.All<SetDto>()
-                    .FirstOrDefault(s => s.Key == key && s.Value == value);
-                if (set != null)
+                var set = r.Find<SetDto>(key);
+
+                if (set == null)
                 {
-                    set.Score = score;
-                }
-                else
-                {
-                    r.Add(new SetDto
+                    set = r.Add(new SetDto
                     {
                         Key = key,
-                        Value = value,
-                        Score = score,
                         ExpireIn = null
+                    });
+                }
+                
+                if (!set.Scores.Any(s => s.Value == value && s.Score == score))
+                {
+                    set.Scores.Add(new ScoreDto
+                    {
+                        Score = score,
+                        Value = value
                     });
                 }
             });
@@ -146,37 +155,125 @@ namespace Hangfire.Realm
 
         public override void RemoveFromSet(string key, string value)
         {
-            throw new NotImplementedException();
+            QueueCommand(r =>
+            {
+                var set = r.Find<SetDto>(key);
+                
+                if (set == null) return;
+
+                var score = set.Scores.FirstOrDefault(s => s.Value == value);
+                if (score != null)
+                {
+                    set.Scores.Remove(score);
+                }
+
+                if (set.Scores.Count == 0)
+                {
+                    r.Remove(set);
+                }
+            });
         }
 
         public override void InsertToList(string key, string value)
         {
-            throw new NotImplementedException();
+            QueueCommand(r =>
+            {
+                var list = r.Find<ListDto>(key);
+                if (list == null)
+                {
+                    list = r.Add(new ListDto
+                    {
+                        Key = key,
+                        ExpireAt = null
+                    });
+                }
+
+                if (!list.Values.Contains(value))
+                {
+                    list.Values.Add(value);
+                }
+            });
         }
 
         public override void RemoveFromList(string key, string value)
         {
-            throw new NotImplementedException();
+            QueueCommand(r =>
+            {
+                var list = r.Find<ListDto>(key);
+                list.Values.Remove(value);
+            });
         }
 
         public override void TrimList(string key, int keepStartingFrom, int keepEndingAt)
         {
-            throw new NotImplementedException();
+            QueueCommand(r =>
+            {
+                var list = r.Find<ListDto>(key);
+                if (list == null)
+                {
+                    return;
+                }
+
+                for (var i = keepStartingFrom; i < keepEndingAt; i++)
+                {
+                    list.Values.RemoveAt(i);    
+                }
+                
+            });
         }
 
         public override void SetRangeInHash(string key, IEnumerable<KeyValuePair<string, string>> keyValuePairs)
         {
-            throw new NotImplementedException();
+            QueueCommand(r =>
+            {
+                var hash = r.Find<HashDto>(key);
+                if (hash == null)
+                {
+                    hash = r.Add(new HashDto
+                    {
+                        Key = key
+                    });
+                }
+                
+                foreach (var valuePair in keyValuePairs)
+                {
+                    var field = hash.Fields.FirstOrDefault(f => f.Key == valuePair.Key);
+                    if (field == null)
+                    {
+                        field = new KeyValueDto
+                        {
+                            Key = valuePair.Key,
+                            Value = valuePair.Value
+                        };
+                        hash.Fields.Add(field);
+                        continue;
+                    }
+
+                    field.Value = valuePair.Value;
+                }
+            });
         }
 
         public override void RemoveHash(string key)
         {
-            throw new NotImplementedException();
+            QueueCommand(r =>
+            {
+                var hash = r.Find<HashDto>(key);
+                if(hash == null) return;
+                
+                r.Remove(hash);
+            });
         }
 
         public override void Commit()
         {
-            throw new NotImplementedException();
+            _realm.Write(() =>
+            {
+                foreach (var command in _commandQueue)
+                {
+                    command(_realm);
+                }
+            });
         }
 
         private void QueueCommand(Action<Realms.Realm> action)
