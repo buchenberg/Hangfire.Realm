@@ -408,7 +408,7 @@ namespace Hangfire.Realm.Tests
 			{
 				Id = Guid.NewGuid().ToString(),
 				Created = created,
-				InvocationData = JobHelper.ToJson(InvocationData.Serialize(job)),
+				InvocationData = SerializationHelper.Serialize(InvocationData.SerializeJob(job)),
 				Arguments = "[\"\\\"Arguments\\\"\"]",
 				StateName = stateName
 			};

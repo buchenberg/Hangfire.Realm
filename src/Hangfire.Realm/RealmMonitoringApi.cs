@@ -301,21 +301,22 @@ namespace Hangfire.Realm
 			return new JobList<T>(result);
 		}
 		
-		private static Common.Job DeserializeJob(string invocationData, string arguments)
+		private static Job DeserializeJob(string invocationData, string arguments)
 		{
-			var data = JobHelper.FromJson<InvocationData>(invocationData);
-			data.Arguments = arguments;
+			var data = InvocationData.DeserializePayload(invocationData);
+			if (!string.IsNullOrEmpty(arguments))
+			{
+				data.Arguments = arguments;
+			}
 
 			try
 			{
-				return data.Deserialize();
+				return data.DeserializeJob();
 			}
 			catch (JobLoadException)
 			{
 				return null;
 			}
 		}
-		
-		
 	}
 }
