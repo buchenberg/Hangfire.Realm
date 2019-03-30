@@ -2,14 +2,14 @@
 using System.Collections.Generic;
 using Realms;
 
-namespace Hangfire.Realm.Dtos
+namespace Hangfire.Realm.Models
 {
-	internal class JobDto : RealmObject
+	internal class JobDto : RealmObject, IExpireAt
     {
 		[PrimaryKey]
 	    public string Id { get; set; }
 
-	    public DateTimeOffset Created { get; set; } = DateTimeOffset.Now;
+	    public DateTimeOffset Created { get; set; }
 
 	    public string StateName { get; set; }
 
@@ -17,7 +17,7 @@ namespace Hangfire.Realm.Dtos
 
 	    public string Arguments { get; set; }
 
-	    public IList<KeyValueDto> Parameters { get; }
+	    public IList<ParameterDto> Parameters { get; }
 
 	    public IList<StateDto> StateHistory { get; }
 

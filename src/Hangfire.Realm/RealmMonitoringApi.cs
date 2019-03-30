@@ -2,12 +2,11 @@
 using System.Collections.Generic;
 using System.Linq;
 using Hangfire.Common;
-using Hangfire.Realm.Dtos;
 using Hangfire.Realm.Extensions;
+using Hangfire.Realm.Models;
 using Hangfire.States;
 using Hangfire.Storage;
 using Hangfire.Storage.Monitoring;
-using ServerDto = Hangfire.Realm.Dtos.ServerDto;
 
 namespace Hangfire.Realm
 {
@@ -24,7 +23,7 @@ namespace Hangfire.Realm
 		{
 
 			var queues = _realm
-				.All<JobQueueDto>()
+				.All<QueuedJobDto>()
 				.Select(q => q.Queue)
 				.Distinct()
 				.ToList();
@@ -51,7 +50,7 @@ namespace Hangfire.Realm
 		public IList<Storage.Monitoring.ServerDto> Servers()
 		{
 			var servers = _realm
-				.All<ServerDto>()
+				.All<Models.ServerDto>()
 				.ToList()
 				.Select(s =>
 					new Storage.Monitoring.ServerDto
@@ -69,9 +68,7 @@ namespace Hangfire.Realm
 
 		public JobDetailsDto JobDetails(string jobId)
 		{
-			var job = _realm
-				.All<JobDto>()
-				.FirstOrDefault(j => j.Id == jobId);
+			var job = _realm.Find<JobDto>(jobId);
 
 			if (job == null) return null;
 
@@ -82,7 +79,6 @@ namespace Hangfire.Realm
 					Reason = x.Reason,
 					Data = x.Data.ToDictionary(s => s.Key, s => s.Value)
 				})
-				.Reverse()
 				.ToList();
 
 			return new JobDetailsDto
@@ -116,7 +112,7 @@ namespace Hangfire.Realm
 			stats.Processing = GetCountIfExists(ProcessingState.StateName);
 			stats.Scheduled = GetCountIfExists(ScheduledState.StateName);
 
-			stats.Servers = _realm.All<ServerDto>().Count();
+			stats.Servers = _realm.All<Models.ServerDto>().Count();
 
 			stats.Succeeded = _realm.Find<CounterDto>(Constants.StatsSucceded)?.Value ?? 0;
 			stats.Deleted = _realm.Find<CounterDto>(Constants.StatsDeleted)?.Value ?? 0;
@@ -217,12 +213,12 @@ namespace Hangfire.Realm
 
 		public long EnqueuedCount(string queue)
 		{
-			return _realm.All<JobQueueDto>().Count(j => j.Queue == queue && j.FetchedAt == null);
+			return _realm.All<QueuedJobDto>().Count(j => j.Queue == queue && j.FetchedAt == null);
 		}
 
 		public long FetchedCount(string queue)
 		{
-			return _realm.All<JobQueueDto>().Count(j => j.Queue == queue && j.FetchedAt != null);
+			return _realm.All<QueuedJobDto>().Count(j => j.Queue == queue && j.FetchedAt != null);
 		}
 
 		public long FailedCount()
@@ -265,7 +261,7 @@ namespace Hangfire.Realm
 			return _realm.GetHourlyTimelineStats(FailedState.StateName.ToLower());
 		}
 
-		private static JobList<T> GetJobs<T>(IList<JobDto> jobs, string stateName, Func<Job, IDictionary<string, string>, string, T> createDto)
+		private static JobList<T> GetJobs<T>(IList<JobDto> jobs, string stateName, Func<Common.Job, IDictionary<string, string>, string, T> createDto)
 		{
 			if (jobs == null)
 			{
@@ -305,7 +301,7 @@ namespace Hangfire.Realm
 			return new JobList<T>(result);
 		}
 		
-		private static Job DeserializeJob(string invocationData, string arguments)
+		private static Common.Job DeserializeJob(string invocationData, string arguments)
 		{
 			var data = JobHelper.FromJson<InvocationData>(invocationData);
 			data.Arguments = arguments;

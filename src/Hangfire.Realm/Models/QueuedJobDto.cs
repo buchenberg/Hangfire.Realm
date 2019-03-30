@@ -1,9 +1,9 @@
 ﻿using System;
 using Realms;
 
-namespace Hangfire.Realm.Dtos
+namespace Hangfire.Realm.Models
 {
-	internal class JobQueueDto : RealmObject
+	internal class QueuedJobDto : RealmObject
     {
 		[PrimaryKey]
 	    public string Id { get; set; }

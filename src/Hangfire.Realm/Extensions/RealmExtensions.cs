@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using Hangfire.Common;
-using Hangfire.Realm.Dtos;
+using Hangfire.Realm.Models;
 using Hangfire.States;
 using Hangfire.Storage;
 using Hangfire.Storage.Monitoring;
@@ -17,18 +17,18 @@ namespace Hangfire.Realm.Extensions
 	    {
 		    var jobIds = new List<string>();
 		    var count = 0;
-		    foreach (var jobQueueDto in realm
-			    .All<JobQueueDto>()
+		    foreach (var queuedJob in realm
+			    .All<QueuedJobDto>()
 			    .OrderByDescending(q => q.Created)
 			    .Where(q => q.Queue == queue && q.FetchedAt == null))
 		    {
 			    if (from > count++) continue;
 			    if (jobIds.Count >= perPage) return jobIds;
 			    
-			    var job = realm.Find<JobDto>(jobQueueDto.JobId);
+			    var job = realm.Find<JobDto>(queuedJob.JobId);
 			    if (job != null && job.StateHistory.Count > 0)
 			    {
-				    jobIds.Add(jobQueueDto.JobId);
+				    jobIds.Add(queuedJob.JobId);
 			    }
 		    }
 
@@ -37,9 +37,9 @@ namespace Hangfire.Realm.Extensions
 
 	    public static (int enqueuedCount, int fetchedCount) GetEnqueuedAndFetchedCount(this Realms.Realm realm, string queue)
 		{
-			var enqueuedCount = realm.All<JobQueueDto>().Count(q => q.Queue == queue && q.FetchedAt == null);
+			var enqueuedCount = realm.All<QueuedJobDto>().Count(q => q.Queue == queue && q.FetchedAt == null);
 
-			var fetchedCount = realm.All<JobQueueDto>().Count(q => q.Queue == queue && q.FetchedAt != null);
+			var fetchedCount = realm.All<QueuedJobDto>().Count(q => q.Queue == queue && q.FetchedAt != null);
 			
 			return (enqueuedCount, fetchedCount);
 		}
@@ -71,7 +71,7 @@ namespace Hangfire.Realm.Extensions
 	    public static IList<string> GetQueues(this Realms.Realm realm)
 	    {
 		    return realm
-			    .All<JobQueueDto>()
+			    .All<QueuedJobDto>()
 				.ToList()
 			    .Select(j => j.Queue)
 			    .ToArray();
@@ -82,7 +82,7 @@ namespace Hangfire.Realm.Extensions
 		    var fetchedJobIds = new List<string>();
 		    var count = 0;
 		    foreach (var jobQueueDto in realm
-			    .All<JobQueueDto>()
+			    .All<QueuedJobDto>()
 			    .OrderByDescending(q => q.Created)
 			    .Where(j => j.Queue == queue && j.FetchedAt != null))
 		    {
@@ -220,28 +220,28 @@ namespace Hangfire.Realm.Extensions
 		    return Query(allJobs, filterExp, param);
 	    }
 	    
-	    private static IList<JobQueueDto> FindQueuedJobs(Realms.Realm realm, ICollection<string> jobIds, bool enqueued)
+	    private static IList<QueuedJobDto> FindQueuedJobs(Realms.Realm realm, ICollection<string> jobIds, bool enqueued)
 	    {
 		    if (jobIds.Count == 0)
 		    {
-			    return Enumerable.Empty<JobQueueDto>().ToList();
+			    return Enumerable.Empty<QueuedJobDto>().ToList();
 		    }
 		    
-		    var allJobs = realm.All<JobQueueDto>();
+		    var allJobs = realm.All<QueuedJobDto>();
 		    
-		    var param = Expression.Parameter(typeof(JobQueueDto), "p");
+		    var param = Expression.Parameter(typeof(QueuedJobDto), "p");
 
 		    // ReSharper disable AssignNullToNotNullAttribute
 		    var fetchedAtExp =
-			    Expression.Property(param, typeof(JobQueueDto).GetProperty(nameof(JobQueueDto.FetchedAt)));
-		    var jobIdExp = Expression.Property(param, typeof(JobQueueDto).GetProperty(nameof(JobQueueDto.JobId)));
+			    Expression.Property(param, typeof(QueuedJobDto).GetProperty(nameof(QueuedJobDto.FetchedAt)));
+		    var jobIdExp = Expression.Property(param, typeof(QueuedJobDto).GetProperty(nameof(QueuedJobDto.JobId)));
 		    // ReSharper enable AssignNullToNotNullAttribute
 
 		    var filterExp = CreateOrElsExpression(jobIdExp, jobIds);
 
 		    if (filterExp == null)
 		    {
-			    return Enumerable.Empty<JobQueueDto>().ToList();
+			    return Enumerable.Empty<QueuedJobDto>().ToList();
 		    }
 
 		    var equalExp = enqueued ? 
@@ -307,7 +307,7 @@ namespace Hangfire.Realm.Extensions
 		    return result;
 	    }
 	    
-	    private static Job DeserializeJob(string invocationData, string arguments)
+	    private static Common.Job DeserializeJob(string invocationData, string arguments)
 	    {
 		    var data = JobHelper.FromJson<InvocationData>(invocationData);
 		    data.Arguments = arguments;
@@ -322,10 +322,10 @@ namespace Hangfire.Realm.Extensions
 		    }
 	    }
 
-	    private static DateTime? GetEnqueudAt(JobDto job)
+	    private static DateTime? GetEnqueudAt(JobDto jobDto)
 	    {
-		    var state = job.StateHistory.LastOrDefault();
-		    return job.StateName == EnqueuedState.StateName
+		    var state = jobDto.StateHistory.LastOrDefault();
+		    return jobDto.StateName == EnqueuedState.StateName
 			    ? JobHelper.DeserializeNullableDateTime(state.Data.First(d => d.Key == "EnqueuedAt").Value)
 			    : null;
 	    }

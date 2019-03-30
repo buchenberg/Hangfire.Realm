@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using Realms;
 
-namespace Hangfire.Realm.Dtos
+namespace Hangfire.Realm.Models
 {
     public class ServerDto : RealmObject
     {

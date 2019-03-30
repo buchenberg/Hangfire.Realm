@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Hangfire.Common;
-using Hangfire.Realm.Dtos;
+using Hangfire.Realm.Models;
 using Hangfire.Realm.Tests.Utils;
 using Hangfire.States;
 using Hangfire.Storage;
@@ -11,7 +11,7 @@ using NUnit.Framework;
 namespace Hangfire.Realm.Tests
 {
     [TestFixture]
-    public class RealmMonitoringApiFacts
+    public class RealmMonitoringApiTests
     {
 		private const string DefaultQueue = "default";
 		private const string FetchedStateName = "Fetched";
@@ -235,8 +235,8 @@ namespace Hangfire.Realm.Tests
 				    Reason = null
 			    };
 				    
-			    processingState.Data.Add(new KeyValueDto("ServerId", Guid.NewGuid().ToString()));
-			    processingState.Data.Add(new KeyValueDto("StartedAt",
+			    processingState.Data.Add(new StateDataDto("ServerId", Guid.NewGuid().ToString()));
+			    processingState.Data.Add(new StateDataDto("StartedAt",
 				    JobHelper.SerializeDateTime(DateTime.UtcNow.Subtract(TimeSpan.FromMilliseconds(500)))));
 			    
 			    jobDto.StateHistory.Insert(0, processingState);
@@ -358,7 +358,7 @@ namespace Hangfire.Realm.Tests
 	    
 		private JobDto CreateJobInState(string stateName, DateTime created = default(DateTime), Action<JobDto> visitor = null)
 		{
-			var job = Job.FromExpression(() => HangfireTestJobs.SampleMethod("wrong"));
+			var job = Common.Job.FromExpression(() => HangfireTestJobs.SampleMethod("wrong"));
 
 			if (created == default(DateTime))
 			{
@@ -401,11 +401,7 @@ namespace Hangfire.Realm.Tests
 			};
 			foreach (var item in stateData)
 			{
-				jobState.Data.Add(new KeyValueDto
-					{
-						Key = item.Key,
-						Value = item.Value
-					});
+				jobState.Data.Add(new StateDataDto(item));
 			}
 			
 			var jobDto = new JobDto
@@ -422,7 +418,7 @@ namespace Hangfire.Realm.Tests
 			
 			_realm.Write(() =>_realm.Add(jobDto));
 			
-			var jobQueueDto = new JobQueueDto
+			var jobQueueDto = new QueuedJobDto
 			{
 				Id = Guid.NewGuid().ToString(),
 				FetchedAt = null,

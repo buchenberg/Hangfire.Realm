@@ -2,17 +2,17 @@ using System;
 using System.Collections.Generic;
 using Realms;
 
-namespace Hangfire.Realm.Dtos
+namespace Hangfire.Realm.Models
 {
-    public class HashDto : RealmObject
+    public class ListDto : RealmObject, IExpireAt
     {
         [PrimaryKey]
         public string Key { get; set; }
 
         public DateTimeOffset Created { get; set; } = DateTimeOffset.Now;
         
-        public DateTimeOffset? ExpireIn { get; set; }
+        public DateTimeOffset? ExpireAt { get; set; }
 
-        public IList<KeyValueDto> Fields { get; set; }
+        public IList<string> Values { get; }
     }
 }
