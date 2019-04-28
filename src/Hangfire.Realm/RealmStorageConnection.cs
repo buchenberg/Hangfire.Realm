@@ -10,14 +10,22 @@ namespace Hangfire.Realm
 {
 	internal class RealmStorageConnection : JobStorageConnection
     {
+	    private readonly IRealmDbContext _realmDbContext;
+	    private readonly RealmJobStorageOptions _storageOptions;
+
+	    public RealmStorageConnection(IRealmDbContext realmDbContext, RealmJobStorageOptions _storageOptions)
+	    {
+		    _realmDbContext = realmDbContext;
+		    this._storageOptions = _storageOptions;
+	    }
 	    public override IWriteOnlyTransaction CreateWriteTransaction()
 	    {
-		    throw new NotImplementedException();
+		    return new RealmWriteOnlyTransaction(_realmDbContext);
 	    }
 
 	    public override IDisposable AcquireDistributedLock(string resource, TimeSpan timeout)
 	    {
-		    throw new NotImplementedException();
+		    return new RealmDistributedLock(resource, timeout, _realmDbContext, _storageOptions);
 	    }
 
 	    public override string CreateExpiredJob(Job job, IDictionary<string, string> parameters, DateTime createdAt, TimeSpan expireIn)

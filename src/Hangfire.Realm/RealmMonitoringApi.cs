@@ -12,17 +12,17 @@ namespace Hangfire.Realm
 {
 	internal class RealmMonitoringApi : IMonitoringApi
 	{
-		private readonly Realms.Realm _realm;
+		private readonly IRealmDbContext _realmDbContext;
 
-		public RealmMonitoringApi(Realms.Realm realm)
+		public RealmMonitoringApi(IRealmDbContext realmDbContext)
 		{
-			_realm = realm;
+			_realmDbContext = realmDbContext;
 		}
 
 		public IList<QueueWithTopEnqueuedJobsDto> Queues()
 		{
-
-			var queues = _realm
+			var realm = _realmDbContext.GetRealm();
+			var queues = realm
 				.All<QueuedJobDto>()
 				.Select(q => q.Queue)
 				.Distinct()
@@ -31,9 +31,9 @@ namespace Hangfire.Realm
 			var result = new List<QueueWithTopEnqueuedJobsDto>(queues.Count);
 			foreach (var queue in queues)
 			{
-				var enqueuedJobIds = _realm.GetEnqueuedJobIds(queue, 0, 5);
-				var counters = _realm.GetEnqueuedAndFetchedCount(queue);
-				var enqueudJobs = _realm.GetEnqueuedJobs(enqueuedJobIds);
+				var enqueuedJobIds = realm.GetEnqueuedJobIds(queue, 0, 5);
+				var counters = realm.GetEnqueuedAndFetchedCount(queue);
+				var enqueudJobs = realm.GetEnqueuedJobs(enqueuedJobIds);
 
 				result.Add(new QueueWithTopEnqueuedJobsDto
 				{
@@ -49,7 +49,8 @@ namespace Hangfire.Realm
 
 		public IList<Storage.Monitoring.ServerDto> Servers()
 		{
-			var servers = _realm
+			var realm = _realmDbContext.GetRealm();
+			var servers = realm
 				.All<Models.ServerDto>()
 				.ToList()
 				.Select(s =>
@@ -68,7 +69,8 @@ namespace Hangfire.Realm
 
 		public JobDetailsDto JobDetails(string jobId)
 		{
-			var job = _realm.Find<JobDto>(jobId);
+			var realm = _realmDbContext.GetRealm();
+			var job = realm.Find<JobDto>(jobId);
 
 			if (job == null) return null;
 
@@ -92,9 +94,10 @@ namespace Hangfire.Realm
 
 		public StatisticsDto GetStatistics()
 		{
+			var realm = _realmDbContext.GetRealm();
 			var stats = new StatisticsDto();
 
-			var countByStates = _realm
+			var countByStates = realm
 				.All<JobDto>()
 				.Where(job => job.StateName == EnqueuedState.StateName || 
 				              job.StateName == FailedState.StateName || 
@@ -112,38 +115,41 @@ namespace Hangfire.Realm
 			stats.Processing = GetCountIfExists(ProcessingState.StateName);
 			stats.Scheduled = GetCountIfExists(ScheduledState.StateName);
 
-			stats.Servers = _realm.All<Models.ServerDto>().Count();
+			stats.Servers = realm.All<Models.ServerDto>().Count();
 
-			stats.Succeeded = _realm.Find<CounterDto>(Constants.StatsSucceded)?.Value ?? 0;
-			stats.Deleted = _realm.Find<CounterDto>(Constants.StatsDeleted)?.Value ?? 0;
+			stats.Succeeded = realm.Find<CounterDto>(Constants.StatsSucceded)?.Value ?? 0;
+			stats.Deleted = realm.Find<CounterDto>(Constants.StatsDeleted)?.Value ?? 0;
 
-			stats.Recurring = _realm
+			stats.Recurring = realm
 				.All<SetDto>()
 				.Count(s => s.Key == Constants.RecurringJobs);
 
 
-			stats.Queues = _realm.GetQueues().Count;
+			stats.Queues = realm.GetQueues().Count;
 
 			return stats;
 		}
 
 		public JobList<EnqueuedJobDto> EnqueuedJobs(string queue, int from, int perPage)
 		{
-			var jobIds = _realm.GetEnqueuedJobIds(queue, from, perPage);
-			var jobs = _realm.GetEnqueuedJobs(jobIds);
+			var realm = _realmDbContext.GetRealm();
+			var jobIds = realm.GetEnqueuedJobIds(queue, from, perPage);
+			var jobs = realm.GetEnqueuedJobs(jobIds);
 			return jobs;
 		}
 
 		public JobList<FetchedJobDto> FetchedJobs(string queue, int from, int perPage)
 		{
-			var jobIds = _realm.GetFetchedJobIds(queue, from, perPage);
-			var jobs = _realm.GetFetchedJobs(jobIds);
+			var realm = _realmDbContext.GetRealm();
+			var jobIds = realm.GetFetchedJobIds(queue, from, perPage);
+			var jobs = realm.GetFetchedJobs(jobIds);
 			return jobs;
 		}
 
 		public JobList<ProcessingJobDto> ProcessingJobs(int from, int count)
 		{
-			var jobs = _realm.GetJobsByStateName(ProcessingState.StateName, from, count);
+			var realm = _realmDbContext.GetRealm();
+			var jobs = realm.GetJobsByStateName(ProcessingState.StateName, from, count);
 			
 			return GetJobs(jobs, ProcessingState.StateName, (job, stateData, stateReason) => new ProcessingJobDto
 			{
@@ -155,7 +161,8 @@ namespace Hangfire.Realm
 
 		public JobList<ScheduledJobDto> ScheduledJobs(int from, int count)
 		{
-			var jobs = _realm.GetJobsByStateName(ScheduledState.StateName, from, count);
+			var realm = _realmDbContext.GetRealm();
+			var jobs = realm.GetJobsByStateName(ScheduledState.StateName, from, count);
 			
 			return GetJobs(jobs, ScheduledState.StateName, (job, stateData, stateReason) => new ScheduledJobDto
 			{
@@ -167,7 +174,8 @@ namespace Hangfire.Realm
 
 		public JobList<SucceededJobDto> SucceededJobs(int from, int count)
 		{
-			var jobs = _realm.GetJobsByStateName(SucceededState.StateName, from, count);
+			var realm = _realmDbContext.GetRealm();
+			var jobs = realm.GetJobsByStateName(SucceededState.StateName, from, count);
 			
 			return GetJobs(jobs, SucceededState.StateName, (job, stateData, stateReason) => new SucceededJobDto
 			{
@@ -182,7 +190,8 @@ namespace Hangfire.Realm
 
 		public JobList<FailedJobDto> FailedJobs(int from, int count)
 		{
-			var jobs = _realm.GetJobsByStateName(FailedState.StateName, from, count);
+			var realm = _realmDbContext.GetRealm();
+			var jobs = realm.GetJobsByStateName(FailedState.StateName, from, count);
 			
 			return GetJobs(jobs, FailedState.StateName, (job, stateData, stateReason) => new FailedJobDto
 			{
@@ -197,7 +206,8 @@ namespace Hangfire.Realm
 
 		public JobList<DeletedJobDto> DeletedJobs(int from, int count)
 		{
-			var jobs = _realm.GetJobsByStateName(DeletedState.StateName, from, count);
+			var realm = _realmDbContext.GetRealm();
+			var jobs = realm.GetJobsByStateName(DeletedState.StateName, from, count);
 			
 			return GetJobs(jobs, DeletedState.StateName, (job, stateData, stateReason) => new DeletedJobDto
 			{
@@ -208,57 +218,68 @@ namespace Hangfire.Realm
 
 		public long ScheduledCount()
 		{
-			return _realm.GetJobCountByStateName(ScheduledState.StateName);
+			var realm = _realmDbContext.GetRealm();
+			return realm.GetJobCountByStateName(ScheduledState.StateName);
 		}
 
 		public long EnqueuedCount(string queue)
 		{
-			return _realm.All<QueuedJobDto>().Count(j => j.Queue == queue && j.FetchedAt == null);
+			var realm = _realmDbContext.GetRealm();
+			return realm.All<QueuedJobDto>().Count(j => j.Queue == queue && j.FetchedAt == null);
 		}
 
 		public long FetchedCount(string queue)
 		{
-			return _realm.All<QueuedJobDto>().Count(j => j.Queue == queue && j.FetchedAt != null);
+			var realm = _realmDbContext.GetRealm();
+			return realm.All<QueuedJobDto>().Count(j => j.Queue == queue && j.FetchedAt != null);
 		}
 
 		public long FailedCount()
 		{
-			return _realm.GetJobCountByStateName(FailedState.StateName);
+			var realm = _realmDbContext.GetRealm();
+			return realm.GetJobCountByStateName(FailedState.StateName);
 		}
 
 		public long ProcessingCount()
 		{
-			return _realm.GetJobCountByStateName(ProcessingState.StateName);
+			var realm = _realmDbContext.GetRealm();
+			return realm.GetJobCountByStateName(ProcessingState.StateName);
 		}
 
 		public long SucceededListCount()
 		{
-			return _realm.GetJobCountByStateName(SucceededState.StateName);
+			var realm = _realmDbContext.GetRealm();
+			return realm.GetJobCountByStateName(SucceededState.StateName);
 		}
 
 		public long DeletedListCount()
 		{
-			return _realm.GetJobCountByStateName(DeletedState.StateName);
+			var realm = _realmDbContext.GetRealm();
+			return realm.GetJobCountByStateName(DeletedState.StateName);
 		}
 
 		public IDictionary<DateTime, long> SucceededByDatesCount()
 		{
-			return _realm.GetTimelineStats(SucceededState.StateName.ToLower());
+			var realm = _realmDbContext.GetRealm();
+			return realm.GetTimelineStats(SucceededState.StateName.ToLower());
 		}
 
 		public IDictionary<DateTime, long> FailedByDatesCount()
 		{
-			return _realm.GetTimelineStats(FailedState.StateName.ToLower());
+			var realm = _realmDbContext.GetRealm();
+			return realm.GetTimelineStats(FailedState.StateName.ToLower());
 		}
 
 		public IDictionary<DateTime, long> HourlySucceededJobs()
 		{
-			return _realm.GetHourlyTimelineStats(SucceededState.StateName.ToLower());
+			var realm = _realmDbContext.GetRealm();
+			return realm.GetHourlyTimelineStats(SucceededState.StateName.ToLower());
 		}
 
 		public IDictionary<DateTime, long> HourlyFailedJobs()
 		{
-			return _realm.GetHourlyTimelineStats(FailedState.StateName.ToLower());
+			var realm = _realmDbContext.GetRealm();
+			return realm.GetHourlyTimelineStats(FailedState.StateName.ToLower());
 		}
 
 		private static JobList<T> GetJobs<T>(IList<JobDto> jobs, string stateName, Func<Common.Job, IDictionary<string, string>, string, T> createDto)

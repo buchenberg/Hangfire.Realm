@@ -19,15 +19,17 @@ namespace Hangfire.Realm.Tests
 	    private const int PerPage = 5;
 	    
 		private RealmMonitoringApi _monitoringApi;
+        private IRealmDbContext _realmDbContext;
         private Realms.Realm _realm;
 
 	    [SetUp]
 	    public void Init()
 	    {
-		    _realm = ConnectionUtils.GetRealm();
+		    _realmDbContext = new RealmDbContext(ConnectionUtils.GetRealmConfiguration());
+		    _realm = _realmDbContext.GetRealm();
 		    
 		    _realm.Write(() => _realm.RemoveAll());
-		    _monitoringApi = new RealmMonitoringApi(_realm);
+		    _monitoringApi = new RealmMonitoringApi(_realmDbContext);
 	    }
 
 	    [TearDown]
@@ -274,7 +276,6 @@ namespace Hangfire.Realm.Tests
 		    // ARRANGE
 		    var date = DateTime.UtcNow.Date;
 		    var succededCount = 10L;
-		    
 			_realm.Write(() => _realm.Add(new CounterDto
 			{
 				// this might fail if we test during date change... seems unlikely

@@ -1,23 +1,34 @@
 ﻿using System;
+using System.Collections.Concurrent;
+using System.IO;
+using System.Runtime.InteropServices;
 using Realms;
 
 namespace Hangfire.Realm.Tests.Utils
 {
     public class ConnectionUtils
     {
-        private static readonly string Path =$"{Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)}\\default.realm"; 
-        private static readonly RealmConfiguration Configuration = new RealmConfiguration(Path);
-        
-        public static Realms.Realm GetRealm()
+        private const string DatabaseNameTemplate = @"HangfireRealmTests{0}.realm";
+        private static ConcurrentDictionary<string, RealmConfiguration> Configurations 
+            = new ConcurrentDictionary<string, RealmConfiguration>();
+        public static RealmConfiguration GetRealmConfiguration()
         {
-            var config = Configuration;
-            return Realms.Realm.GetInstance(config);
+            var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                GetDatabaseName()); 
+            return Configurations.GetOrAdd(path, p => new RealmConfiguration(p));
         }
-
-        public static void DeleteRealm()
+        private static string GetDatabaseName()
         {
-            var config = Configuration;
-            Realms.Realm.DeleteRealm(config);
+            var framework = "Net46";
+            if (RuntimeInformation.FrameworkDescription.Contains(".NET Core"))
+            {
+                framework = "NetCore";
+            }
+            else if (RuntimeInformation.FrameworkDescription.Contains("Mono"))
+            {
+                framework = "Mono";
+            }
+            return string.Format(DatabaseNameTemplate, framework);
         }
     }
 }

@@ -13,10 +13,10 @@ namespace Hangfire.Realm
         private readonly Realms.Realm _realm;
         private readonly Transaction _transaction;
         
-        public RealmWriteOnlyTransaction(Realms.Realm realm)
+        public RealmWriteOnlyTransaction(IRealmDbContext realmDbContext)
         {
-            _realm = realm;
-            _transaction =  realm.BeginWrite();
+            _realm = realmDbContext.GetRealm();
+            _transaction =  _realm.BeginWrite();
         }
         public override void ExpireJob(string jobId, TimeSpan expireIn)
         {

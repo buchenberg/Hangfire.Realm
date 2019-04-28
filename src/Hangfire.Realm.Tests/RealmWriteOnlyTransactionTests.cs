@@ -17,17 +17,13 @@ namespace Hangfire.Realm.Tests
         private Realms.Realm _realm;
         private RealmWriteOnlyTransaction _transaction;
 
-        [OneTimeSetUp]
-        public void OneTimeSetup()
-        {
-            ConnectionUtils.DeleteRealm();
-        }
-        
         [SetUp]
         public void Init()
         {
-            _realm = ConnectionUtils.GetRealm();
-            _transaction = new RealmWriteOnlyTransaction(_realm);
+            var factory = new RealmDbContext(ConnectionUtils.GetRealmConfiguration());
+            
+            _realm = factory.GetRealm();
+            _transaction = new RealmWriteOnlyTransaction(factory);
             _realm.RemoveAll();
         }
         
