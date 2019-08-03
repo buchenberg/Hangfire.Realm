@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using Hangfire.Common;
+using Hangfire.Realm.Models;
 using Hangfire.Server;
 using Hangfire.Storage;
 
@@ -60,8 +61,35 @@ namespace Hangfire.Realm
 
 	    public override void AnnounceServer(string serverId, ServerContext context)
 	    {
-		    throw new NotImplementedException();
-	    }
+            if (serverId == null)
+            {
+                throw new ArgumentNullException(nameof(serverId));
+            }
+
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            var realm = _realmDbContext.GetRealm();
+
+            realm.Write(() =>
+            {
+                var server = new ServerDto
+                {
+                    WorkerCount = context.WorkerCount,
+                    StartedAt = DateTime.UtcNow,
+                    LastHeartbeat = DateTime.UtcNow
+                };
+
+                foreach (var queue in context.Queues)
+                {
+                    server.Queues.Add(queue);
+                };
+
+                realm.Add(server);
+            });
+        }
 
 	    public override void RemoveServer(string serverId)
 	    {
