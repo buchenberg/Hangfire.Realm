@@ -90,7 +90,6 @@ namespace Hangfire.Realm.Tests
             var jobDto = new JobDto
             {
                 Id = Guid.NewGuid().ToString(),
-                //InvocationData = JobHelper.ToJson(InvocationData.SerializeJob(job)),
                 InvocationData = SerializationHelper.Serialize(InvocationData.SerializeJob(job)),
                 Arguments = "[\"\\\"Arguments\\\"\"]",
                 StateName = SucceededState.StateName,
@@ -118,7 +117,6 @@ namespace Hangfire.Realm.Tests
                 Queues = new[] { "critical", "default" },
                 WorkerCount = 4
             };
-
             var context2 = new ServerContext
             {
                 Queues = new[] { "default" },
