@@ -69,6 +69,46 @@ namespace Hangfire.Realm.Tests
         }
 
         [Test]
+        public void Heartbeat_ThrowsAnException_WhenServerIdIsNull()
+        {
+            Assert.Throws<ArgumentNullException>(
+                () => _connection.Heartbeat(null));
+        }
+
+        [Test]
+        public void Heartbeat_UpdatesLastHeartbeat_OfTheServerWithGivenId()
+        {
+
+            _realm.Write(() =>
+            {
+                var server1 = new ServerDto
+                {
+                    Id = "server1",
+                    LastHeartbeat = new DateTime(2012, 12, 12, 12, 12, 12, DateTimeKind.Utc)
+                };
+
+                var server2 = new ServerDto
+                {
+                    Id = "server2",
+                    LastHeartbeat = new DateTime(2012, 12, 12, 12, 12, 12, DateTimeKind.Utc)
+                };
+
+                _realm.Add(server1);
+                _realm.Add(server2);
+            });
+
+            _connection.Heartbeat("server1");
+
+            var servers = _realm.All<ServerDto>().ToList()
+                .ToDictionary(x => x.Id, x => x.LastHeartbeat);
+
+            Assert.True(servers.ContainsKey("server1"));
+            Assert.True(servers.ContainsKey("server2"));
+            Assert.AreNotEqual(2012, servers["server1"].Value.Year);
+            Assert.AreEqual(2012, servers["server2"].Value.Year);
+        }
+
+        [Test]
         public void RemoveServer_RemovesAServerRecord()
         {
             _realm.Write(() =>
@@ -96,6 +136,12 @@ namespace Hangfire.Realm.Tests
             Assert.IsTrue(servers.Any(s => s.Id == "server2"));
             Assert.IsFalse(servers.Any(s => s.Id == "server1"));
 
+        }
+
+        [Test]
+        public void RemoveServer_ThrowsAnException_WhenServerIdIsNull()
+        {
+            Assert.Throws<ArgumentNullException>(() => _connection.RemoveServer(null));
         }
     }
 }
