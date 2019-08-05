@@ -99,6 +99,22 @@ namespace Hangfire.Realm
                 throw new ArgumentNullException(nameof(serverId));
             }
             var realm = _realmDbContext.GetRealm();
+            var server = realm.All<ServerDto>().First(d => d.Id == serverId);
+            using (var trans = realm.BeginWrite())
+            {
+                realm.Remove(server);
+                trans.Commit();
+            }
+
+        }
+
+	    public override void Heartbeat(string serverId)
+	    {
+            if (serverId == null)
+            {
+                throw new ArgumentNullException(nameof(serverId));
+            }
+            var realm = _realmDbContext.GetRealm();
             var servers = realm.All<ServerDto>().Where(d => d.Id == serverId);
             using (var transaction = realm.BeginWrite())
             {
@@ -109,13 +125,7 @@ namespace Hangfire.Realm
 
                 transaction.Commit();
             }
-
         }
-
-	    public override void Heartbeat(string serverId)
-	    {
-		    throw new NotImplementedException();
-	    }
 
 	    public override int RemoveTimedOutServers(TimeSpan timeOut)
 	    {
