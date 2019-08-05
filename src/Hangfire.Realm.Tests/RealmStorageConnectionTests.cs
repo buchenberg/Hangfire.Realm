@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Hangfire.Common;
 using Hangfire.Realm.Models;
 using Hangfire.Realm.Tests.Utils;
 using Hangfire.Server;
+using Hangfire.States;
+using Hangfire.Storage;
 using NUnit.Framework;
 
 namespace Hangfire.Realm.Tests
@@ -77,6 +80,33 @@ namespace Hangfire.Realm.Tests
             Assert.AreEqual("Name", result.Name);
             Assert.AreEqual("Reason", result.Reason);
             Assert.AreEqual("Value", result.Data["Key"]);
+        }
+
+        [Test]
+        public void GetJobData_ReturnsResult_WhenJobExists()
+        {
+            var job = Job.FromExpression(() => HangfireTestJobs.SampleMethod("wrong"));
+
+            var jobDto = new JobDto
+            {
+                Id = Guid.NewGuid().ToString(),
+                //InvocationData = JobHelper.ToJson(InvocationData.SerializeJob(job)),
+                InvocationData = SerializationHelper.Serialize(InvocationData.SerializeJob(job)),
+                Arguments = "[\"\\\"Arguments\\\"\"]",
+                StateName = SucceededState.StateName,
+                Created = DateTime.UtcNow
+            };
+            _realm.Write(() => { _realm.Add(jobDto); });
+
+            var result = _connection.GetJobData(jobDto.Id.ToString());
+
+            Assert.NotNull(result);
+            Assert.NotNull(result.Job);
+            Assert.AreEqual(SucceededState.StateName, result.State);
+            Assert.AreEqual("Arguments", result.Job.Args[0]);
+            Assert.Null(result.LoadException);
+            Assert.True(DateTime.UtcNow.AddMinutes(-1) < result.CreatedAt);
+            Assert.True(result.CreatedAt < DateTime.UtcNow.AddMinutes(1));
         }
 
         [Test]

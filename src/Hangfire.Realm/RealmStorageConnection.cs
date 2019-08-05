@@ -66,7 +66,6 @@ namespace Hangfire.Realm
                 return null;
             }
 
-            // TODO: conversion exception could be thrown.
             var invocationData = SerializationHelper.Deserialize<InvocationData>(jobData.InvocationData);
             invocationData.Arguments = jobData.Arguments;
 
