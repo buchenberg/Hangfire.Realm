@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using Hangfire.Common;
@@ -93,8 +94,23 @@ namespace Hangfire.Realm
 
 	    public override void RemoveServer(string serverId)
 	    {
-		    throw new NotImplementedException();
-	    }
+            if (serverId == null)
+            {
+                throw new ArgumentNullException(nameof(serverId));
+            }
+            var realm = _realmDbContext.GetRealm();
+            var servers = realm.All<ServerDto>().Where(d => d.Id == serverId);
+            using (var transaction = realm.BeginWrite())
+            {
+                foreach (var server in servers)
+                {
+                    server.LastHeartbeat = DateTime.UtcNow;
+                }
+
+                transaction.Commit();
+            }
+
+        }
 
 	    public override void Heartbeat(string serverId)
 	    {
