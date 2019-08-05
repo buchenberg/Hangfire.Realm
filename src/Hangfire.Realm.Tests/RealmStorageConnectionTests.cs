@@ -1,10 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using Hangfire.Realm.Models;
 using Hangfire.Realm.Tests.Utils;
 using Hangfire.Server;
-using Hangfire.Storage;
 using NUnit.Framework;
 
 namespace Hangfire.Realm.Tests
@@ -30,6 +29,54 @@ namespace Hangfire.Realm.Tests
         public void Cleanup()
         {
 
+        }
+
+        [Test]
+        public void GetStateData_ReturnsCorrectData()
+        {
+            var data = new StateDataDto
+            {
+                Key = "Key",
+                Value = "Value"
+            };
+            var state = new StateDto
+            {
+                Name = "old-state",
+                Created = DateTime.UtcNow
+            };
+            var jobDto = new JobDto
+            {
+                Id = Guid.NewGuid().ToString(),
+                InvocationData = "",
+                Arguments = "",
+                StateName = "",
+                Created = DateTime.UtcNow
+            };
+            
+
+            var stateUpdate = new StateDto
+            {
+                Name = "Name",
+                Reason = "Reason",
+                Created = DateTime.UtcNow
+            };
+
+            _realm.Write(() =>
+            {
+                jobDto.StateHistory.Add(state);
+                _realm.Add(jobDto);
+                stateUpdate.Data.Add(data);
+                jobDto.StateHistory.Add(stateUpdate);
+                _realm.Add(jobDto, update: true);
+            });
+
+            
+
+            var result = _connection.GetStateData(jobDto.Id);
+            Assert.NotNull(result);
+            Assert.AreEqual("Name", result.Name);
+            Assert.AreEqual("Reason", result.Reason);
+            Assert.AreEqual("Value", result.Data["Key"]);
         }
 
         [Test]
@@ -118,14 +165,13 @@ namespace Hangfire.Realm.Tests
                     Id = "server1",
                     LastHeartbeat = DateTime.UtcNow
                 };
+                _realm.Add(server1);
 
                 var server2 = new ServerDto
                 {
                     Id = "server2",
                     LastHeartbeat = DateTime.UtcNow
                 };
-
-                _realm.Add(server1);
                 _realm.Add(server2);
             });
 

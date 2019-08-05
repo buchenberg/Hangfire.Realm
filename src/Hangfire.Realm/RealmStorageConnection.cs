@@ -52,13 +52,75 @@ namespace Hangfire.Realm
 
 	    public override JobData GetJobData(string jobId)
 	    {
-		    throw new NotImplementedException();
-	    }
+            if (jobId == null)
+            {
+                throw new ArgumentNullException(nameof(jobId));
+            }
+
+            var realm = _realmDbContext.GetRealm();
+            var jobData = realm.All<JobDto>()
+                .First(d => d.Id == jobId);
+
+            if (jobData == null)
+            {
+                return null;
+            }
+
+            // TODO: conversion exception could be thrown.
+            var invocationData = SerializationHelper.Deserialize<InvocationData>(jobData.InvocationData);
+            invocationData.Arguments = jobData.Arguments;
+
+            Job job = null;
+            JobLoadException loadException = null;
+
+            try
+            {
+                job = invocationData.DeserializeJob();
+            }
+            catch (JobLoadException ex)
+            {
+                loadException = ex;
+            }
+
+            return new JobData
+            {
+                Job = job,
+                State = jobData.StateName,
+                CreatedAt = jobData.Created.DateTime,
+                LoadException = loadException
+            };
+        }
 
 	    public override StateData GetStateData(string jobId)
 	    {
-		    throw new NotImplementedException();
-	    }
+            if (jobId == null)
+            {
+                throw new ArgumentNullException(nameof(jobId));
+            }
+
+            var realm = _realmDbContext.GetRealm();
+            var job = realm.All<JobDto>()
+                .First(d => d.Id == jobId);
+
+            if (job == null)
+            {
+                return null;
+            }
+
+            var state = job.StateHistory.LastOrDefault();
+
+            if (state == null)
+            {
+                return null;
+            }
+
+            return new StateData
+            {
+                Name = state.Name,
+                Reason = state.Reason,
+                Data =   state.Data.ToDictionary(x => x.Key, x => x.Value)
+            };
+        }
 
 	    public override void AnnounceServer(string serverId, ServerContext context)
 	    {
