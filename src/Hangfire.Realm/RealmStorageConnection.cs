@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using Hangfire.Common;
 using Hangfire.Realm.Models;
@@ -203,8 +204,27 @@ namespace Hangfire.Realm
 
 	    public override string GetFirstByLowestScoreFromSet(string key, double fromScore, double toScore)
 	    {
-		    throw new NotImplementedException();
-	    }
+            if (key == null)
+            {
+                throw new ArgumentNullException(nameof(key));
+            }
+
+            if (toScore < fromScore)
+            {
+                throw new ArgumentException("The `toScore` value must be higher or equal to the `fromScore` value.");
+            }
+            var realm = _realmDbContext.GetRealm();
+
+            var result = realm.All<SetDto>()
+                .Where(_ => _.Key.Contains("key"))
+                .Where(_ => _.Score >= fromScore)
+                .Where(_ => _.Score <= toScore)
+                .OrderBy(_ => _.Score)
+                .FirstOrDefault().Value;
+
+            return result;
+                
+        }
 
 	    public override void SetRangeInHash(string key, IEnumerable<KeyValuePair<string, string>> keyValuePairs)
 	    {

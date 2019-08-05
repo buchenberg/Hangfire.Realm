@@ -217,5 +217,40 @@ namespace Hangfire.Realm.Tests
         {
             Assert.Throws<ArgumentNullException>(() => _connection.RemoveServer(null));
         }
+        [Test]
+        public void GetFirstByLowestScoreFromSet_ReturnsTheValueWithTheLowestScore()
+        {
+            _realm.Write(() =>
+            {
+                _realm.Add(new SetDto
+                {
+                    Key = SetDto.CreateCompoundKey("key", "1.0"),
+                    Value = "1.0",
+                    Score = 1.0
+                });
+                _realm.Add(new SetDto
+                {
+                    Key = SetDto.CreateCompoundKey("key", "-5.0"),
+                    Value = "-5.0",
+                    Score = -5.0
+                });
+                _realm.Add(new SetDto
+                {
+                    Key = SetDto.CreateCompoundKey("key", "-1.0"),
+                    Value = "-1.0",
+                    Score = -1.0
+                });
+                _realm.Add(new SetDto
+                {
+                    Key = SetDto.CreateCompoundKey("key", "-2.0"),
+                    Value = "-2.0",
+                    Score = -2.0
+                });
+            });
+
+            var result = _connection.GetFirstByLowestScoreFromSet("key", -1.0, 3.0);
+
+            Assert.AreEqual("-1.0", result);
+        }
     }
 }
