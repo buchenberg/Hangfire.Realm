@@ -1,11 +1,13 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.27130.2026
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29009.5
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hangfire.Realm", "Hangfire.Realm\Hangfire.Realm.csproj", "{6311504D-9633-4D34-8689-FB9D345BE553}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hangfire.Realm.Tests", "Hangfire.Realm.Tests\Hangfire.Realm.Tests.csproj", "{1B5096A2-C30E-41AA-8AA2-F64D2BC22931}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hangfire.Realm.Tests", "Hangfire.Realm.Tests\Hangfire.Realm.Tests.csproj", "{1B5096A2-C30E-41AA-8AA2-F64D2BC22931}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hangfire.Realm.Sample.NETCore.Generic", "Hangfire.Realm.Sample.NETCore.Generic\Hangfire.Realm.Sample.NETCore.Generic.csproj", "{A60B1C2B-B88F-420D-BFB7-62C0122EC2EF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{1B5096A2-C30E-41AA-8AA2-F64D2BC22931}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1B5096A2-C30E-41AA-8AA2-F64D2BC22931}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1B5096A2-C30E-41AA-8AA2-F64D2BC22931}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A60B1C2B-B88F-420D-BFB7-62C0122EC2EF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A60B1C2B-B88F-420D-BFB7-62C0122EC2EF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A60B1C2B-B88F-420D-BFB7-62C0122EC2EF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A60B1C2B-B88F-420D-BFB7-62C0122EC2EF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
