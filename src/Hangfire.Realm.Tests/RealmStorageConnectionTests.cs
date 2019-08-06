@@ -218,6 +218,35 @@ namespace Hangfire.Realm.Tests
             Assert.Throws<ArgumentNullException>(() => _connection.RemoveServer(null));
         }
         [Test]
+        public void RemoveTimedOutServers_Works()
+        {
+            _realm.Write(() =>
+            {
+                _realm.Add(new ServerDto
+                {
+                    Id = "server1",
+                    LastHeartbeat = DateTime.UtcNow.AddDays(-1)
+                });
+                _realm.Add(new ServerDto
+                {
+                    Id = "server2",
+                    LastHeartbeat = DateTime.UtcNow.AddHours(-12)
+                });
+                _realm.Add(new ServerDto
+                {
+                    Id = "server3",
+                    LastHeartbeat = DateTime.UtcNow.AddHours(-17)
+                });
+            });
+
+
+            var deletedServerCount = _connection.RemoveTimedOutServers(TimeSpan.FromHours(15));
+
+            var liveServer = _realm.All<ServerDto>().FirstOrDefault();
+            Assert.AreEqual("server2", liveServer.Id);
+            Assert.AreEqual(2, deletedServerCount);
+        }
+        [Test]
         public void GetFirstByLowestScoreFromSet_ReturnsTheValueWithTheLowestScore()
         {
             _realm.Write(() =>

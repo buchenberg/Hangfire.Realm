@@ -186,16 +186,27 @@ namespace Hangfire.Realm
 
 	    public override int RemoveTimedOutServers(TimeSpan timeOut)
 	    {
-            throw new NotImplementedException();
-            //if (timeOut.Duration() != timeOut)
-            //{
-            //    throw new ArgumentException("The `timeOut` value must be positive.", nameof(timeOut));
-            //}
 
-            //return (int)_dbContext
-            //    .Server
-            //    .DeleteMany(Builders<ServerDto>.Filter.Lt(_ => _.LastHeartbeat, DateTime.UtcNow.Add(timeOut.Negate())))
-            //    .DeletedCount;
+            if (timeOut.Duration() != timeOut)
+            {
+                throw new ArgumentException("The `timeOut` value must be positive.", nameof(timeOut));
+            }
+            DateTime cutoff = DateTime.UtcNow.Add(timeOut.Negate());
+            var realm = _realmDbContext.GetRealm();
+            var servers = realm.All<ServerDto>()
+               .Where(_ => _.LastHeartbeat < cutoff);
+            int deletedServerCount = 0;
+            using (var transaction = realm.BeginWrite())
+            {
+                foreach (var server in servers)
+                {
+                    realm.Remove(server);
+                    deletedServerCount++;
+                }
+
+                transaction.Commit();
+            }
+            return deletedServerCount;
         }
 
 	    public override HashSet<string> GetAllItemsFromSet(string key)
