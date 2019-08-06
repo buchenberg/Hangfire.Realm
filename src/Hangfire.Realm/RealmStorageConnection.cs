@@ -33,8 +33,16 @@ namespace Hangfire.Realm
 
 	    public override string CreateExpiredJob(Job job, IDictionary<string, string> parameters, DateTime createdAt, TimeSpan expireIn)
 	    {
-		    throw new NotImplementedException();
-	    }
+            string jobId;
+
+            using (var transaction = new RealmWriteOnlyTransaction(_realmDbContext))
+            {
+                jobId = transaction.CreateExpiredJob(job, parameters, createdAt, expireIn);
+                transaction.Commit();
+            }
+
+            return jobId;
+        }
 
 	    public override IFetchedJob FetchNextJob(string[] queues, CancellationToken cancellationToken)
 	    {

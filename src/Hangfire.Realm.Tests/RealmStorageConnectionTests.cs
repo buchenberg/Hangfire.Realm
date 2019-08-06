@@ -35,6 +35,43 @@ namespace Hangfire.Realm.Tests
         }
 
         [Test]
+        public void CreateExpiredJob_CreatesAJobInTheStorage_AndSetsItsParameters()
+        {
+            var createdAt = new DateTime(2012, 12, 12, 0, 0, 0, 0, DateTimeKind.Utc);
+            var jobId = _connection.CreateExpiredJob(
+                Job.FromExpression(() => HangfireTestJobs.SampleMethod("Hello")),
+                new Dictionary<string, string> { { "Key1", "Value1" }, { "Key2", "Value2" } },
+                createdAt,
+                TimeSpan.FromDays(1));
+
+            Assert.NotNull(jobId);
+            Assert.IsNotEmpty(jobId);
+
+            var databaseJob = _realm.Find<JobDto>(jobId);
+            Assert.AreEqual(jobId, databaseJob.Id.ToString());
+            Assert.AreEqual(createdAt, databaseJob.Created.DateTime);
+            Assert.Null(databaseJob.StateName);
+
+            var invocationData = SerializationHelper.Deserialize<InvocationData>(databaseJob.InvocationData);
+            invocationData.Arguments = databaseJob.Arguments;
+
+            var job = invocationData.DeserializeJob();
+            Assert.AreEqual(typeof(HangfireTestJobs), job.Type);
+            Assert.AreEqual(nameof(HangfireTestJobs.SampleMethod), job.Method.Name);
+            Assert.AreEqual("Hello", job.Args[0]);
+
+            Assert.True(createdAt.AddDays(1).AddMinutes(-1) < databaseJob.ExpireAt);
+            Assert.True(databaseJob.ExpireAt < createdAt.AddDays(1).AddMinutes(1));
+
+            var parameters = _realm.Find<JobDto>(jobId).Parameters;
+            Dictionary<string, string> paramDictionary = parameters.ToDictionary(_ => _.Key, _ => _.Value);
+
+            Assert.NotNull(parameters);
+            Assert.AreEqual("Value1", paramDictionary["Key1"]);
+            Assert.AreEqual("Value2", paramDictionary["Key2"]);
+        }
+
+        [Test]
         public void GetStateData_ReturnsCorrectData()
         {
             var data = new StateDataDto
@@ -218,7 +255,7 @@ namespace Hangfire.Realm.Tests
             Assert.Throws<ArgumentNullException>(() => _connection.RemoveServer(null));
         }
         [Test]
-        public void RemoveTimedOutServers_Works()
+        public void RemoveTimedOutServers_RemovesServers()
         {
             _realm.Write(() =>
             {

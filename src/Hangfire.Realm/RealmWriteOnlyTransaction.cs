@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Hangfire.Common;
 using Hangfire.Realm.Models;
 using Hangfire.States;
 using Hangfire.Storage;
@@ -25,6 +26,35 @@ namespace Hangfire.Realm
             {
                 job.ExpireAt = DateTime.UtcNow.Add(expireIn);
             }
+        }
+        public string CreateExpiredJob(Job job, IDictionary<string, string> parameters, DateTime createdAt,
+            TimeSpan expireIn)
+        {
+            if (job == null)
+                throw new ArgumentNullException(nameof(job));
+
+            if (parameters == null)
+                throw new ArgumentNullException(nameof(parameters));
+
+            var invocationData = InvocationData.SerializeJob(job);
+
+            var jobDto = new JobDto
+            {
+                Id = Guid.NewGuid().ToString(),
+                InvocationData = SerializationHelper.Serialize<InvocationData>(invocationData),
+                Arguments = invocationData.Arguments,
+                Created = createdAt,
+                ExpireAt = createdAt.Add(expireIn)
+            };
+
+            foreach (var param in parameters)
+            {
+                jobDto.Parameters.Add(new ParameterDto(param.Key, param.Value));
+            }
+
+            _realm.Add(jobDto);
+            var jobId = jobDto.Id;
+            return jobId;
         }
 
         public override void PersistJob(string jobId)
