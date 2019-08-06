@@ -33,8 +33,16 @@ namespace Hangfire.Realm
 
 	    public override string CreateExpiredJob(Job job, IDictionary<string, string> parameters, DateTime createdAt, TimeSpan expireIn)
 	    {
-		    throw new NotImplementedException();
-	    }
+            string jobId;
+
+            using (var transaction = new RealmWriteOnlyTransaction(_realmDbContext))
+            {
+                jobId = transaction.CreateExpiredJob(job, parameters, createdAt, expireIn);
+                transaction.Commit();
+            }
+
+            return jobId;
+        }
 
 	    public override IFetchedJob FetchNextJob(string[] queues, CancellationToken cancellationToken)
 	    {
@@ -59,8 +67,7 @@ namespace Hangfire.Realm
             }
 
             var realm = _realmDbContext.GetRealm();
-            var jobData = realm.All<JobDto>()
-                .First(d => d.Id == jobId);
+            var jobData = realm.Find<JobDto>(jobId);
 
             if (jobData == null)
             {
@@ -99,8 +106,7 @@ namespace Hangfire.Realm
             }
 
             var realm = _realmDbContext.GetRealm();
-            var job = realm.All<JobDto>()
-                .First(d => d.Id == jobId);
+            var job = realm.Find<JobDto>(jobId);
 
             if (job == null)
             {
@@ -145,12 +151,7 @@ namespace Hangfire.Realm
                     StartedAt = DateTime.UtcNow,
                     LastHeartbeat = DateTime.UtcNow
                 };
-
-                foreach (var queue in context.Queues)
-                {
-                    server.Queues.Add(queue);
-                };
-
+                ((List<string>)server.Queues).AddRange(context.Queues);
                 realm.Add(server, update: true);
             });
         }
@@ -162,12 +163,11 @@ namespace Hangfire.Realm
                 throw new ArgumentNullException(nameof(serverId));
             }
             var realm = _realmDbContext.GetRealm();
-            var server = realm.All<ServerDto>()
-                .First(d => d.Id == serverId);
-            using (var trans = realm.BeginWrite())
+            var server = realm.Find<ServerDto>(serverId);
+            using (var transaction = realm.BeginWrite())
             {
                 realm.Remove(server);
-                trans.Commit();
+                transaction.Commit();
             }
 
         }
@@ -194,8 +194,28 @@ namespace Hangfire.Realm
 
 	    public override int RemoveTimedOutServers(TimeSpan timeOut)
 	    {
-		    throw new NotImplementedException();
-	    }
+
+            if (timeOut.Duration() != timeOut)
+            {
+                throw new ArgumentException("The `timeOut` value must be positive.", nameof(timeOut));
+            }
+            DateTime cutoff = DateTime.UtcNow.Add(timeOut.Negate());
+            var realm = _realmDbContext.GetRealm();
+            var servers = realm.All<ServerDto>()
+               .Where(_ => _.LastHeartbeat < cutoff);
+            int deletedServerCount = 0;
+            using (var transaction = realm.BeginWrite())
+            {
+                foreach (var server in servers)
+                {
+                    realm.Remove(server);
+                    deletedServerCount++;
+                }
+
+                transaction.Commit();
+            }
+            return deletedServerCount;
+        }
 
 	    public override HashSet<string> GetAllItemsFromSet(string key)
 	    {
@@ -215,15 +235,13 @@ namespace Hangfire.Realm
             }
             var realm = _realmDbContext.GetRealm();
 
-            var result = realm.All<SetDto>()
-                .Where(_ => _.Key.Contains("key"))
+            return realm.All<SetDto>()
+                .Where(_ => _.Key.StartsWith("key"))
                 .Where(_ => _.Score >= fromScore)
                 .Where(_ => _.Score <= toScore)
                 .OrderBy(_ => _.Score)
                 .FirstOrDefault().Value;
 
-            return result;
-                
         }
 
 	    public override void SetRangeInHash(string key, IEnumerable<KeyValuePair<string, string>> keyValuePairs)

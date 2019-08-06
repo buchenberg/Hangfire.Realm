@@ -35,6 +35,43 @@ namespace Hangfire.Realm.Tests
         }
 
         [Test]
+        public void CreateExpiredJob_CreatesAJobInTheStorage_AndSetsItsParameters()
+        {
+            var createdAt = new DateTime(2012, 12, 12, 0, 0, 0, 0, DateTimeKind.Utc);
+            var jobId = _connection.CreateExpiredJob(
+                Job.FromExpression(() => HangfireTestJobs.SampleMethod("Hello")),
+                new Dictionary<string, string> { { "Key1", "Value1" }, { "Key2", "Value2" } },
+                createdAt,
+                TimeSpan.FromDays(1));
+
+            Assert.NotNull(jobId);
+            Assert.IsNotEmpty(jobId);
+
+            var databaseJob = _realm.Find<JobDto>(jobId);
+            Assert.AreEqual(jobId, databaseJob.Id.ToString());
+            Assert.AreEqual(createdAt, databaseJob.Created.DateTime);
+            Assert.Null(databaseJob.StateName);
+
+            var invocationData = SerializationHelper.Deserialize<InvocationData>(databaseJob.InvocationData);
+            invocationData.Arguments = databaseJob.Arguments;
+
+            var job = invocationData.DeserializeJob();
+            Assert.AreEqual(typeof(HangfireTestJobs), job.Type);
+            Assert.AreEqual(nameof(HangfireTestJobs.SampleMethod), job.Method.Name);
+            Assert.AreEqual("Hello", job.Args[0]);
+
+            Assert.True(createdAt.AddDays(1).AddMinutes(-1) < databaseJob.ExpireAt);
+            Assert.True(databaseJob.ExpireAt < createdAt.AddDays(1).AddMinutes(1));
+
+            var parameters = _realm.Find<JobDto>(jobId).Parameters;
+            Dictionary<string, string> paramDictionary = parameters.ToDictionary(_ => _.Key, _ => _.Value);
+
+            Assert.NotNull(parameters);
+            Assert.AreEqual("Value1", paramDictionary["Key1"]);
+            Assert.AreEqual("Value2", paramDictionary["Key2"]);
+        }
+
+        [Test]
         public void GetStateData_ReturnsCorrectData()
         {
             var data = new StateDataDto
@@ -216,6 +253,35 @@ namespace Hangfire.Realm.Tests
         public void RemoveServer_ThrowsAnException_WhenServerIdIsNull()
         {
             Assert.Throws<ArgumentNullException>(() => _connection.RemoveServer(null));
+        }
+        [Test]
+        public void RemoveTimedOutServers_RemovesServers()
+        {
+            _realm.Write(() =>
+            {
+                _realm.Add(new ServerDto
+                {
+                    Id = "server1",
+                    LastHeartbeat = DateTime.UtcNow.AddDays(-1)
+                });
+                _realm.Add(new ServerDto
+                {
+                    Id = "server2",
+                    LastHeartbeat = DateTime.UtcNow.AddHours(-12)
+                });
+                _realm.Add(new ServerDto
+                {
+                    Id = "server3",
+                    LastHeartbeat = DateTime.UtcNow.AddHours(-17)
+                });
+            });
+
+
+            var deletedServerCount = _connection.RemoveTimedOutServers(TimeSpan.FromHours(15));
+
+            var liveServer = _realm.All<ServerDto>().FirstOrDefault();
+            Assert.AreEqual("server2", liveServer.Id);
+            Assert.AreEqual(2, deletedServerCount);
         }
         [Test]
         public void GetFirstByLowestScoreFromSet_ReturnsTheValueWithTheLowestScore()
