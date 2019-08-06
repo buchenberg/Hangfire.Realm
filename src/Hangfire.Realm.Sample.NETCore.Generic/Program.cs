@@ -1,10 +1,8 @@
-﻿using Hangfire;
-using Hangfire.Logging.LogProviders;
+﻿using Hangfire.Logging.LogProviders;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Realms;
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -16,15 +14,8 @@ namespace Hangfire.Realm.Sample.NETCore.Generic
         private const int JobCount = 100;
         static async Task Main(string[] args)
         {
-            var pathToExe = Process.GetCurrentProcess().MainModule.FileName;
-            var pathToContentRoot = Path.GetDirectoryName(pathToExe);
-            Directory.SetCurrentDirectory(pathToContentRoot);
 
             IHost host = new HostBuilder()
-               .ConfigureHostConfiguration(config =>
-               {
-
-               })
                .ConfigureAppConfiguration((hostContext, config) =>
                {
                    config.SetBasePath(Directory.GetCurrentDirectory());
@@ -32,17 +23,14 @@ namespace Hangfire.Realm.Sample.NETCore.Generic
                })
                .ConfigureServices((hostContext, services) =>
                {
-
                    services.AddHangfire(config =>
                    {
-                       RealmJobStorageOptions realmJobStorageOptions = new RealmJobStorageOptions
+                       config.UseRealmJobStorage(new RealmJobStorageOptions
                        {
-                           RealmConfiguration = new RealmConfiguration("sample.realm")
-                       };
-                       config.UseRealmJobStorage(realmJobStorageOptions);
+                           RealmConfiguration = new RealmConfiguration(Path.Combine(Directory.GetCurrentDirectory(), "sample.realm"))
+                       });
                        config.UseLogProvider(new ColouredConsoleLogProvider());
                    });
-
                    services.AddHangfireServer();
 
                })
@@ -50,8 +38,6 @@ namespace Hangfire.Realm.Sample.NETCore.Generic
                .Build();
 
             await host.RunAsync();
-
-
 
             using (new BackgroundJobServer())
             {
