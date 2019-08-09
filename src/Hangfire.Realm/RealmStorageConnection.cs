@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
 using Hangfire.Common;
 using Hangfire.Realm.Models;
@@ -14,14 +12,19 @@ namespace Hangfire.Realm
 	internal class RealmStorageConnection : JobStorageConnection
     {
 	    private readonly IRealmDbContext _realmDbContext;
-	    private readonly RealmJobStorageOptions _storageOptions;
+        private readonly RealmJobStorageOptions _storageOptions;
+        private readonly RealmJobStorage _storage;
 
-	    public RealmStorageConnection(IRealmDbContext realmDbContext, RealmJobStorageOptions _storageOptions)
+        public RealmStorageConnection(
+            IRealmDbContext realmDbContext, 
+            RealmJobStorageOptions storageOptions)
 	    {
 		    _realmDbContext = realmDbContext;
-		    this._storageOptions = _storageOptions;
-	    }
-	    public override IWriteOnlyTransaction CreateWriteTransaction()
+		    _storageOptions = storageOptions;
+            _storage = new RealmJobStorage(storageOptions);
+        }
+
+        public override IWriteOnlyTransaction CreateWriteTransaction()
 	    {
 		    return new RealmWriteOnlyTransaction(_realmDbContext);
 	    }
@@ -44,12 +47,27 @@ namespace Hangfire.Realm
             return jobId;
         }
 
-	    public override IFetchedJob FetchNextJob(string[] queues, CancellationToken cancellationToken)
-	    {
-		    throw new NotImplementedException();
-	    }
+        public override IFetchedJob FetchNextJob(string[] queues, CancellationToken cancellationToken)
+        {
+            if (queues == null || queues.Length == 0) throw new ArgumentNullException(nameof(queues));
 
-	    public override void SetJobParameter(string id, string name, string value)
+            var providers = queues
+                .Select(queue => _storage.QueueProviders.GetProvider(queue))
+                .Distinct()
+                .ToArray();
+
+            if (providers.Length != 1)
+            {
+                throw new InvalidOperationException(
+                    $"Multiple provider instances registered for queues: {String.Join(", ", queues)}. You should choose only one type of persistent queues per server instance.");
+            }
+
+            var persistentQueue = providers[0].GetJobQueue();
+            return persistentQueue.Dequeue(queues, cancellationToken);
+        }
+
+
+        public override void SetJobParameter(string id, string name, string value)
 	    {
 		    throw new NotImplementedException();
 	    }
@@ -140,9 +158,7 @@ namespace Hangfire.Realm
                 throw new ArgumentNullException(nameof(context));
             }
 
-            var realm = _realmDbContext.GetRealm();
-
-            realm.Write(() =>
+            _realmDbContext.Write(r =>
             {
                 var server = new ServerDto
                 {
@@ -152,7 +168,7 @@ namespace Hangfire.Realm
                     LastHeartbeat = DateTime.UtcNow
                 };
                 ((List<string>)server.Queues).AddRange(context.Queues);
-                realm.Add(server, update: true);
+                r.Add(server, update: true);
             });
         }
 
@@ -162,14 +178,11 @@ namespace Hangfire.Realm
             {
                 throw new ArgumentNullException(nameof(serverId));
             }
-            var realm = _realmDbContext.GetRealm();
-            var server = realm.Find<ServerDto>(serverId);
-            using (var transaction = realm.BeginWrite())
+            _realmDbContext.Write(realm =>
             {
+                var server = realm.Find<ServerDto>(serverId);
                 realm.Remove(server);
-                transaction.Commit();
-            }
-
+            });
         }
 
 	    public override void Heartbeat(string serverId)
@@ -178,42 +191,35 @@ namespace Hangfire.Realm
             {
                 throw new ArgumentNullException(nameof(serverId));
             }
-            var realm = _realmDbContext.GetRealm();
-            var servers = realm.All<ServerDto>()
-                .Where(d => d.Id == serverId);
-            using (var transaction = realm.BeginWrite())
+            _realmDbContext.Write(realm =>
             {
+                var servers = realm.All<ServerDto>()
+                .Where(d => d.Id == serverId);
                 foreach (var server in servers)
                 {
                     server.LastHeartbeat = DateTime.UtcNow;
                 }
-
-                transaction.Commit();
-            }
+            });
         }
 
 	    public override int RemoveTimedOutServers(TimeSpan timeOut)
 	    {
-
             if (timeOut.Duration() != timeOut)
             {
                 throw new ArgumentException("The `timeOut` value must be positive.", nameof(timeOut));
             }
             DateTime cutoff = DateTime.UtcNow.Add(timeOut.Negate());
-            var realm = _realmDbContext.GetRealm();
-            var servers = realm.All<ServerDto>()
-               .Where(_ => _.LastHeartbeat < cutoff);
             int deletedServerCount = 0;
-            using (var transaction = realm.BeginWrite())
+            _realmDbContext.Write(realm =>
             {
+                var servers = realm.All<ServerDto>()
+               .Where(_ => _.LastHeartbeat < cutoff);
                 foreach (var server in servers)
                 {
                     realm.Remove(server);
                     deletedServerCount++;
                 }
-
-                transaction.Commit();
-            }
+            });
             return deletedServerCount;
         }
 
@@ -221,8 +227,14 @@ namespace Hangfire.Realm
 	    {
 		    throw new NotImplementedException();
 	    }
-
-	    public override string GetFirstByLowestScoreFromSet(string key, double fromScore, double toScore)
+        public override long GetSetCount(string key)
+        {
+            if (key == null) throw new ArgumentNullException(nameof(key));
+            var realm = _realmDbContext.GetRealm();
+            var count = realm.All<SetDto>().Where(_ => _.Key == key).Count();
+            return count;
+        }
+        public override string GetFirstByLowestScoreFromSet(string key, double fromScore, double toScore)
 	    {
             if (key == null)
             {
@@ -234,13 +246,16 @@ namespace Hangfire.Realm
                 throw new ArgumentException("The `toScore` value must be higher or equal to the `fromScore` value.");
             }
             var realm = _realmDbContext.GetRealm();
-
-            return realm.All<SetDto>()
+            var set = realm.All<SetDto>()
                 .Where(_ => _.Key.StartsWith("key"))
                 .Where(_ => _.Score >= fromScore)
                 .Where(_ => _.Score <= toScore)
                 .OrderBy(_ => _.Score)
-                .FirstOrDefault().Value;
+                .FirstOrDefault();
+
+            var value = set?.Value;
+
+            return value;
 
         }
 

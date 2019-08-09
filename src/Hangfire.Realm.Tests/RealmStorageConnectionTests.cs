@@ -8,6 +8,7 @@ using Hangfire.Server;
 using Hangfire.States;
 using Hangfire.Storage;
 using NUnit.Framework;
+using Realms;
 
 namespace Hangfire.Realm.Tests
 {
@@ -23,7 +24,10 @@ namespace Hangfire.Realm.Tests
         public void Init()
         {
             _realmDbContext = new RealmDbContext(ConnectionUtils.GetRealmConfiguration());
-            _connection = new RealmStorageConnection(_realmDbContext, new RealmJobStorageOptions());
+            _connection = new RealmStorageConnection(_realmDbContext, new RealmJobStorageOptions()
+            {
+                RealmConfiguration = new RealmConfiguration()
+            });
             _realm = _realmDbContext.GetRealm();
             _realm.Write(() => _realm.RemoveAll());
         }
@@ -326,6 +330,16 @@ namespace Hangfire.Realm.Tests
             var result = _connection.GetFirstByLowestScoreFromSet("key", -1.0, 3.0);
 
             Assert.AreEqual("-1.0", result);
+        }
+
+        [Test]
+        public void GetFirstByLowestScoreFromSet_ReturnsNull_WhenTheKeyDoesNotExist()
+        {
+
+                var result = _connection.GetFirstByLowestScoreFromSet(
+                    "key", 0, 1);
+                Assert.Null(result);
+
         }
     }
 }

@@ -14,12 +14,12 @@ namespace Hangfire.Realm
 	{
 		private readonly IRealmDbContext _realmDbContext;
 
-		public RealmMonitoringApi(IRealmDbContext realmDbContext)
+        public RealmMonitoringApi(IRealmDbContext realmDbContext)
 		{
 			_realmDbContext = realmDbContext;
 		}
 
-		public IList<QueueWithTopEnqueuedJobsDto> Queues()
+        public IList<QueueWithTopEnqueuedJobsDto> Queues()
 		{
 			var realm = _realmDbContext.GetRealm();
 			var queues = realm

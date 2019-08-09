@@ -12,12 +12,13 @@ namespace Hangfire.Realm.Models
     }
     public class NotificationDto : RealmObject
     {
+        private String enumDescription;
         public static NotificationDto JobEnqueued(string queue)
         {
             return new NotificationDto
             {
                 Id = Guid.NewGuid().ToString(),
-                Type = NotificationType.JobEnqueued,
+                Type = NotificationType.JobEnqueued.ToString(),
                 Value = queue
             };
         }
@@ -27,7 +28,7 @@ namespace Hangfire.Realm.Models
             return new NotificationDto
             {
                 Id = Guid.NewGuid().ToString(),
-                Type = NotificationType.LockReleased,
+                Type = NotificationType.LockReleased.ToString(),
                 Value = resource
             };
         }
@@ -35,7 +36,7 @@ namespace Hangfire.Realm.Models
         [PrimaryKey]
         public string Id { get; set; }
 
-        public NotificationType Type { get; set; }
+        public string Type { get; set; }
 
         public string Value { get; set; }
     }
