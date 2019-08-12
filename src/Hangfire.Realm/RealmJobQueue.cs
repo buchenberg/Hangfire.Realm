@@ -73,7 +73,7 @@ namespace Hangfire.Realm
         {
             _db.Write(() =>
             {
-                _db.Add(new QueuedJobDto { Id = Guid.NewGuid().ToString(), Created = DateTimeOffset.UtcNow, Queue = queue, JobId = jobId });
+                _db.Add(new JobQueueDto { Id = Guid.NewGuid().ToString(), Created = DateTimeOffset.UtcNow, Queue = queue, JobId = jobId });
             });
         }
 
@@ -95,7 +95,7 @@ namespace Hangfire.Realm
         private RealmFetchedJob TryGetEnqueuedJob(string queue, CancellationToken cancellationToken)
         {
 
-            var fetchedJob = _db.All<QueuedJobDto>()
+            var fetchedJob = _db.All<JobQueueDto>()
                 .Where(_ => _.Queue == queue)
                 .Where(_ => _.FetchedAt < _invisibilityTimeout)
                 .FirstOrDefault();

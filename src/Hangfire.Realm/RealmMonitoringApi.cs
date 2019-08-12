@@ -23,7 +23,7 @@ namespace Hangfire.Realm
 		{
 			var realm = _realmDbContext.GetRealm();
 			var queues = realm
-				.All<QueuedJobDto>()
+				.All<JobQueueDto>()
 				.Select(q => q.Queue)
 				.Distinct()
 				.ToList();
@@ -225,13 +225,13 @@ namespace Hangfire.Realm
 		public long EnqueuedCount(string queue)
 		{
 			var realm = _realmDbContext.GetRealm();
-			return realm.All<QueuedJobDto>().Count(j => j.Queue == queue && j.FetchedAt == null);
+			return realm.All<JobQueueDto>().Count(j => j.Queue == queue && j.FetchedAt == null);
 		}
 
 		public long FetchedCount(string queue)
 		{
 			var realm = _realmDbContext.GetRealm();
-			return realm.All<QueuedJobDto>().Count(j => j.Queue == queue && j.FetchedAt != null);
+			return realm.All<JobQueueDto>().Count(j => j.Queue == queue && j.FetchedAt != null);
 		}
 
 		public long FailedCount()

@@ -174,7 +174,7 @@ namespace Hangfire.Realm.Tests
             _transaction.Commit();
             
             //ASSERT
-            var testJob = _realm.All<QueuedJobDto>().SingleOrDefault(j => j.JobId == "1");
+            var testJob = _realm.All<JobQueueDto>().SingleOrDefault(j => j.JobId == "1");
             Assert.NotNull(testJob);
             Assert.AreEqual("default", testJob.Queue);
         }
