@@ -114,13 +114,13 @@ namespace Hangfire.Realm.Extensions
 				    var state = job.StateHistory.FirstOrDefault(s => s.Name == job.StateName);
 				    return new 
 				    {
-					    Id = job.Id,
-					    InvocationData = job.InvocationData,
-					    Arguments = job.Arguments,
+					    job.Id,
+                        job.InvocationData,
+					    job.Arguments,
 					    CreatedAt = job.Created,
-					    ExpireAt = job.ExpireAt,
+					    job.ExpireAt,
 					    FetchedAt = (DateTimeOffset?)null,
-					    StateName = job.StateName,
+					    job.StateName,
 					    StateReason = state?.Reason,
 					    StateData = state?.Data
 				    };
