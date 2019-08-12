@@ -298,13 +298,13 @@ namespace Hangfire.Realm
 
 					return new
 					{
-						Id = job.Id,
-						InvocationData = job.InvocationData,
-						Arguments = job.Arguments,
-						CreatedAt = job.Created,
-						ExpireAt = job.ExpireAt,
+						job.Id,
+						job.InvocationData,
+						job.Arguments,
+						job.Created,
+						job.ExpireAt,
 						FetchedAt = (DateTimeOffset?)null,
-						StateName = job.StateName,
+						job.StateName,
 						StateReason = state?.Reason,
 						StateData = state?.Data
 					};
