@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using Hangfire.Annotations;
 using Hangfire.Common;
 using Hangfire.Realm.Models;
 using Hangfire.Server;
@@ -69,15 +70,33 @@ namespace Hangfire.Realm
 
         public override void SetJobParameter(string id, string name, string value)
 	    {
-		    throw new NotImplementedException();
-	    }
+            if (id == null) throw new ArgumentNullException(nameof(id));
+            if (name == null) throw new ArgumentNullException(nameof(name));
+            if (value == null) throw new ArgumentNullException(nameof(value));
+            _realmDbContext.Write(realm =>
+            {
+                var jobDto = realm.Find<JobDto>(id);
+                jobDto.Parameters.Add(new ParameterDto
+                {
+                    Key = name,
+                    Value = value
+                });
+            });
+
+        }
 
 	    public override string GetJobParameter(string id, string name)
 	    {
-		    throw new NotImplementedException();
-	    }
-
-	    public override JobData GetJobData(string jobId)
+            if (id == null) throw new ArgumentNullException(nameof(id));
+            if (name == null) throw new ArgumentNullException(nameof(name));
+            string value = string.Empty;
+            var realm = _realmDbContext.GetRealm();
+            var jobDto = realm.Find<JobDto>(id);
+            var param = jobDto.Parameters.Where(_ => _.Key == name).FirstOrDefault();
+            return param?.Value;
+        }
+        [CanBeNull]
+        public override JobData GetJobData(string jobId)
 	    {
             if (jobId == null)
             {
@@ -115,8 +134,8 @@ namespace Hangfire.Realm
                 LoadException = loadException
             };
         }
-
-	    public override StateData GetStateData(string jobId)
+        [CanBeNull]
+        public override StateData GetStateData(string jobId)
 	    {
             if (jobId == null)
             {
@@ -158,7 +177,7 @@ namespace Hangfire.Realm
                 throw new ArgumentNullException(nameof(context));
             }
 
-            _realmDbContext.Write(r =>
+            _realmDbContext.Write(realm =>
             {
                 var server = new ServerDto
                 {
@@ -168,7 +187,7 @@ namespace Hangfire.Realm
                     LastHeartbeat = DateTime.UtcNow
                 };
                 ((List<string>)server.Queues).AddRange(context.Queues);
-                r.Add(server, update: true);
+                realm.Add(server, update: true);
             });
         }
 
@@ -222,8 +241,9 @@ namespace Hangfire.Realm
             });
             return deletedServerCount;
         }
-
-	    public override HashSet<string> GetAllItemsFromSet(string key)
+        // Set operations
+        [NotNull]
+        public override HashSet<string> GetAllItemsFromSet(string key)
 	    {
 		    throw new NotImplementedException();
 	    }
@@ -258,13 +278,13 @@ namespace Hangfire.Realm
             return value;
 
         }
-
+        // hash operations
 	    public override void SetRangeInHash(string key, IEnumerable<KeyValuePair<string, string>> keyValuePairs)
 	    {
 		    throw new NotImplementedException();
 	    }
-
-	    public override Dictionary<string, string> GetAllEntriesFromHash(string key)
+        [CanBeNull]
+        public override Dictionary<string, string> GetAllEntriesFromHash(string key)
 	    {
 		    throw new NotImplementedException();
 	    }

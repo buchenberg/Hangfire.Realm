@@ -19,11 +19,21 @@ namespace Hangfire.Realm
         private Realms.Realm _db;
         private readonly DateTime _invisibilityTimeout;
 
+        private readonly RealmJobStorage _storage;
+        private readonly RealmJobStorageOptions _options;
 
-        public RealmJobQueue(IRealmDbContext dbContext)
+
+        //public RealmJobQueue(IRealmDbContext dbContext)
+        //{
+        //    _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+        //    _db = _dbContext.GetRealm();
+        //}
+
+        public RealmJobQueue([NotNull] RealmJobStorage storage, RealmJobStorageOptions options)
         {
-            _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
-            _db = _dbContext.GetRealm();
+            _storage = storage ?? throw new ArgumentNullException(nameof(storage));
+            _options = options ?? throw new ArgumentNullException(nameof(options));
+            _dbContext = storage.GetDbContext();
         }
 
         public void Dispose()
@@ -71,10 +81,9 @@ namespace Hangfire.Realm
 
         public void Enqueue(string queue, string jobId)
         {
-            _db.Write(() =>
-            {
-                _db.Add(new JobQueueDto { Id = Guid.NewGuid().ToString(), Created = DateTimeOffset.UtcNow, Queue = queue, JobId = jobId });
-            });
+            _dbContext.Write(realm => {
+                realm.Add(new JobQueueDto { Id = Guid.NewGuid().ToString(), Created = DateTimeOffset.UtcNow, Queue = queue, JobId = jobId });
+             });
         }
 
         private RealmFetchedJob TryAllQueues(string[] queues, CancellationToken cancellationToken)
@@ -94,10 +103,11 @@ namespace Hangfire.Realm
 
         private RealmFetchedJob TryGetEnqueuedJob(string queue, CancellationToken cancellationToken)
         {
+            var enqueuedJobs = _db.All<JobQueueDto>();
 
-            var fetchedJob = _db.All<JobQueueDto>()
+            var fetchedJob = enqueuedJobs
                 .Where(_ => _.Queue == queue)
-                .Where(_ => _.FetchedAt < _invisibilityTimeout)
+                //.Where(_ => _.FetchedAt < _invisibilityTimeout)
                 .FirstOrDefault();
 
 
@@ -106,9 +116,11 @@ namespace Hangfire.Realm
                 return null;
             }
 
-            _db.Write(() =>
-            {
-                fetchedJob.FetchedAt = DateTime.UtcNow;
+            _dbContext.Write(realm => {
+                realm.Write(() =>
+                {
+                    fetchedJob.FetchedAt = DateTime.UtcNow;
+                });
             });
 
             if (Logger.IsTraceEnabled())

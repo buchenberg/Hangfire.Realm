@@ -25,8 +25,10 @@ namespace Hangfire.Realm
 
         public void Write(Action<Realms.Realm> writeAction)
         {
-            var realm = GetRealm();
-            realm.Write(() => writeAction?.Invoke(realm));
+            using (var realm = GetRealm())
+            {
+                realm.Write(() => writeAction?.Invoke(realm));
+            }
         }
     }
 }

@@ -9,7 +9,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hangfire.Realm.Tests", "Han
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hangfire.Realm.Sample.NETCore.Generic", "Hangfire.Realm.Sample.NETCore.Generic\Hangfire.Realm.Sample.NETCore.Generic.csproj", "{A60B1C2B-B88F-420D-BFB7-62C0122EC2EF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hangfire.Realm.Sample.NetCore", "Hangfire.Realm.Sample.NetCore\Hangfire.Realm.Sample.NetCore.csproj", "{A8F68595-BD12-40E4-BFFA-A2319F817402}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hangfire.Realm.Sample.NetCore", "Hangfire.Realm.Sample.NetCore\Hangfire.Realm.Sample.NetCore.csproj", "{A8F68595-BD12-40E4-BFFA-A2319F817402}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hangfire.Realm.Sample.AspNETCore", "Hangfire.Realm.Sample.AspNETCore\Hangfire.Realm.Sample.AspNETCore.csproj", "{0FA2F62A-28E3-4FBD-83A2-3A617DF9E077}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,6 +35,10 @@ Global
 		{A8F68595-BD12-40E4-BFFA-A2319F817402}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A8F68595-BD12-40E4-BFFA-A2319F817402}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A8F68595-BD12-40E4-BFFA-A2319F817402}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0FA2F62A-28E3-4FBD-83A2-3A617DF9E077}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0FA2F62A-28E3-4FBD-83A2-3A617DF9E077}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0FA2F62A-28E3-4FBD-83A2-3A617DF9E077}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0FA2F62A-28E3-4FBD-83A2-3A617DF9E077}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -13,34 +13,41 @@ namespace Hangfire.Realm.Sample.NetCore
 
         public static void Main()
         {
-            var dbPath = Path.Combine(Directory.GetCurrentDirectory(), "sample.realm");
-
-            var hfConfig = GlobalConfiguration.Configuration;
-            hfConfig.UseLogProvider(new ColouredConsoleLogProvider());
-            hfConfig.UseRealmJobStorage(new RealmJobStorageOptions
+            RealmJobStorageOptions storageOptions = new RealmJobStorageOptions
             {
-                RealmConfiguration = new RealmConfiguration(dbPath)
-            });
-
-            var options = new BackgroundJobServerOptions()
+                RealmConfiguration = new RealmConfiguration(Path.Combine(Directory.GetCurrentDirectory(), "sample.realm"))
+            };
+            
+            BackgroundJobServerOptions serverOptions = new BackgroundJobServerOptions()
             {
+                WorkerCount = 5,
+                Queues = new[] { "critical", "default" },
                 ServerTimeout = TimeSpan.FromMinutes(10),
                 HeartbeatInterval = TimeSpan.FromSeconds(10),
                 ServerCheckInterval = TimeSpan.FromSeconds(10),
                 SchedulePollingInterval = TimeSpan.FromSeconds(10),
-                Queues = new[] { "critical", "default" }
+                //CountersAggregateInterval = TimeSpan.FromMinutes(1),
+                //ExpirationCheckInterval = TimeSpan.FromMinutes(15),
+
             };
-            using (new BackgroundJobServer(options))
+
+            GlobalConfiguration.Configuration
+            .UseLogProvider(new ColouredConsoleLogProvider(Logging.LogLevel.Info))
+            .UseRealmJobStorage(storageOptions);
+
+            using (new BackgroundJobServer(serverOptions))
             {
                 for (var i = 0; i < JobCount; i++)
                 {
                     var jobNumber = i + 1;
-                    var jobId = BackgroundJob.Enqueue(() => Console.WriteLine($"Fire-and-forget job {jobNumber}"));
-                    Console.WriteLine($"Job {jobNumber} was given Id {jobId} and placed in queue");
+                    var jobId = BackgroundJob.Enqueue(() => 
+                    Console.WriteLine($"Fire-and-forget job {jobNumber}"));
+                    //Console.WriteLine($"Job {jobNumber} was given Id {jobId} and placed in queue");
                 }
-                //BackgroundJob.Schedule(() => 
-                //Console.WriteLine("Scheduled job"),
-                //TimeSpan.FromSeconds(30));
+
+                BackgroundJob.Schedule(() =>
+                Console.WriteLine("Scheduled job"),
+                TimeSpan.FromSeconds(30));
 
                 Console.WriteLine($"{JobCount} job(s) has been enqueued. They will be executed shortly!");
                 Console.WriteLine();

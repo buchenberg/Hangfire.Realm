@@ -28,26 +28,37 @@ namespace Hangfire.Realm
 
         public void RemoveFromQueue()
         {
-            _dbContext.Write(realm =>
+            var realm = _dbContext.GetRealm();
+            var queuedJob = realm.Find<JobQueueDto>(_id);
+            if (queuedJob != null)
             {
-                var queuedJob = realm.Find<JobQueueDto>(_id);
-                realm.Remove(queuedJob);
+                _dbContext.Write(r => {
+                r.Remove(queuedJob);
+                if (Logger.IsTraceEnabled())
+                {
+                    Logger.Trace($"Requeue job '{JobId}' from queue '{Queue}'");
+                }
             });
+            }
             _removedFromQueue = true;
         }
 
         public void Requeue()
         {
-            _dbContext.Write(realm =>
+            var realm = _dbContext.GetRealm();
+            var queuedJob = realm.Find<JobQueueDto>(_id);
+            if (queuedJob != null)
             {
-                var queuedJob = realm.Find<JobQueueDto>(_id);
+                _dbContext.Write(r => 
+                {
                 var notification = NotificationDto.JobEnqueued(Queue);
                 queuedJob.FetchedAt = null;
-                realm.Add<NotificationDto>(notification);
+                r.Add<NotificationDto>(notification);
+                if (Logger.IsTraceEnabled())
+                {
+                    Logger.Trace($"Requeue job '{JobId}' from queue '{Queue}'");
+                }
             });
-            if (Logger.IsTraceEnabled())
-            {
-                Logger.Trace($"Requeue job '{JobId}' from queue '{Queue}'");
             }
             _requeued = true;
         }

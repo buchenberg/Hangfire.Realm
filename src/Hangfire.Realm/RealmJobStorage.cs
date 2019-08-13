@@ -35,11 +35,11 @@ namespace Hangfire.Realm
         }
         private void InitializeQueueProviders()
         {
-            var defaultQueueProvider = new RealmJobQueueProvider(this);
+            var defaultQueueProvider = new RealmJobQueueProvider(this, _options);
             QueueProviders = new RealmJobQueueProviderCollection(defaultQueueProvider);
         }
 
-
         public virtual RealmJobQueueProviderCollection QueueProviders { get; private set; }
+
     }
 }
