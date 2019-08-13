@@ -8,7 +8,7 @@ using Hangfire.Storage;
 
 namespace Hangfire.Realm
 {
-    public class RealmJobQueue : IDisposable
+    public class RealmJobQueue
     {
         private static readonly ILog Logger = LogProvider.For<RealmJobQueue>();
 
@@ -16,34 +16,17 @@ namespace Hangfire.Realm
         //private readonly IJobQueueSemaphore _semaphore;
 
         private readonly IRealmDbContext _dbContext;
-        private Realms.Realm _db;
         private readonly DateTime _invisibilityTimeout;
-
-        private readonly RealmJobStorage _storage;
         private readonly RealmJobStorageOptions _options;
-
-
-        //public RealmJobQueue(IRealmDbContext dbContext)
-        //{
-        //    _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
-        //    _db = _dbContext.GetRealm();
-        //}
 
         public RealmJobQueue([NotNull] RealmJobStorage storage, RealmJobStorageOptions options)
         {
-            _storage = storage ?? throw new ArgumentNullException(nameof(storage));
             _options = options ?? throw new ArgumentNullException(nameof(options));
+            if (storage == null) throw new ArgumentNullException(nameof(storage));
             _dbContext = storage.GetDbContext();
+            
         }
 
-        public void Dispose()
-        {
-            if (_db != null)
-            {
-                _db.Dispose();
-                _db = null;
-            }
-        }
 
         [NotNull]
         public IFetchedJob Dequeue(string[] queues, CancellationToken cancellationToken)
@@ -78,12 +61,12 @@ namespace Hangfire.Realm
             return fetchedJob;
         }
 
-
         public void Enqueue(string queue, string jobId)
         {
-            _dbContext.Write(realm => {
+            using (var realm = _dbContext.GetRealm())
+            {
                 realm.Add(new JobQueueDto { Id = Guid.NewGuid().ToString(), Created = DateTimeOffset.UtcNow, Queue = queue, JobId = jobId });
-             });
+            };
         }
 
         private RealmFetchedJob TryAllQueues(string[] queues, CancellationToken cancellationToken)
@@ -103,31 +86,32 @@ namespace Hangfire.Realm
 
         private RealmFetchedJob TryGetEnqueuedJob(string queue, CancellationToken cancellationToken)
         {
-            var enqueuedJobs = _db.All<JobQueueDto>();
-
-            var fetchedJob = enqueuedJobs
+            using (var realm = _dbContext.GetRealm())
+            {
+                var enqueuedJobs = realm.All<JobQueueDto>();
+                JobQueueDto fetchedJob = enqueuedJobs
                 .Where(_ => _.Queue == queue)
                 //.Where(_ => _.FetchedAt < _invisibilityTimeout)
                 .FirstOrDefault();
-
-
-            if (fetchedJob == null)
-            {
-                return null;
-            }
-
-            _dbContext.Write(realm => {
-                realm.Write(() =>
+                if (fetchedJob != null)
                 {
-                    fetchedJob.FetchedAt = DateTime.UtcNow;
-                });
-            });
+                    realm.Write(() =>
+                    {
+                        fetchedJob.FetchedAt = DateTime.UtcNow;
+                    });
+                    if (Logger.IsTraceEnabled())
+                    {
+                        Logger.Trace($"Fetched job {fetchedJob.JobId} from '{queue}' Thread[{Thread.CurrentThread.ManagedThreadId}]");
+                    }
+                    return new RealmFetchedJob(_dbContext, fetchedJob.Id, fetchedJob.JobId, fetchedJob.Queue);
+                }
+                return null;
 
-            if (Logger.IsTraceEnabled())
-            {
-                Logger.Trace($"Fetched job {fetchedJob.JobId} from '{queue}' Thread[{Thread.CurrentThread.ManagedThreadId}]");
             }
-            return new RealmFetchedJob(_dbContext, fetchedJob.Id, fetchedJob.JobId, fetchedJob.Queue);
+
+            
+
+            
 
         }
     }

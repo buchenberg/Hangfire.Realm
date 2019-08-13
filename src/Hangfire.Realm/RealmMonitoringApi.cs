@@ -13,38 +13,70 @@ namespace Hangfire.Realm
 	internal class RealmMonitoringApi : IMonitoringApi
 	{
 		private readonly IRealmDbContext _realmDbContext;
+        private readonly RealmJobStorage _storage;
 
-        public RealmMonitoringApi(IRealmDbContext realmDbContext)
+        public RealmMonitoringApi(RealmJobStorage storage, IRealmDbContext realmDbContext)
 		{
 			_realmDbContext = realmDbContext;
-		}
+            _storage = storage;
+        }
+
+        public IEnumerable<string> GetQueues()
+        {
+            string sqlQuery = $@"select distinct(Queue) from [{_storage.SchemaName}].JobQueue with (nolock)";
+
+            lock (_cacheLock)
+            {
+                if (_queuesCache.Count == 0 || _cacheUpdated.Elapsed > QueuesCacheTimeout)
+                {
+                    var result = _storage.UseConnection(null, connection =>
+                    {
+                        return connection.Query(sqlQuery, commandTimeout: _storage.CommandTimeout).Select(x => (string)x.Queue).ToList();
+                    });
+
+                    _queuesCache = result;
+                    _cacheUpdated = Stopwatch.StartNew();
+                }
+
+                return _queuesCache.ToList();
+            }
+        }
 
         public IList<QueueWithTopEnqueuedJobsDto> Queues()
 		{
-			var realm = _realmDbContext.GetRealm();
-			var queues = realm
-				.All<JobQueueDto>()
-				.Select(q => q.Queue)
-				.Distinct()
-				.ToList();
+            using (var realm = _realmDbContext.GetRealm())
+            {
+                var queues = realm
+                   .All<JobQueueDto>()
+                   .Select(q => q.Queue)
+                   .Distinct().ToList();
 
-			var result = new List<QueueWithTopEnqueuedJobsDto>(queues.Count);
-			foreach (var queue in queues)
-			{
-				var enqueuedJobIds = realm.GetEnqueuedJobIds(queue, 0, 5);
-				var counters = realm.GetEnqueuedAndFetchedCount(queue);
-				var enqueudJobs = realm.GetEnqueuedJobs(enqueuedJobIds);
+                var tuples = _storage.QueueProviders
+                .Select(x => x.GetJobQueueMonitoringApi())
+                .SelectMany(x => x.GetQueues(), (monitoring, queue) => new { Monitoring = monitoring, Queue = queue })
+                .OrderBy(x => x.Queue)
+                .ToArray();
 
-				result.Add(new QueueWithTopEnqueuedJobsDto
-				{
-					Name = queue,
-					Length = counters.enqueuedCount,
-					Fetched = counters.fetchedCount,
-					FirstJobs = enqueudJobs
-				});
-			}
+                var result = new List<QueueWithTopEnqueuedJobsDto>(queues.Count);
+                foreach (var queue in queues)
+                {
+                    var enqueuedJobIds = realm.GetEnqueuedJobIds(queue, 0, 5);
+                    var counters = realm.GetEnqueuedAndFetchedCount(queue);
+                    var enqueudJobs = realm.GetEnqueuedJobs(enqueuedJobIds);
 
-			return result;
+                    result.Add(new QueueWithTopEnqueuedJobsDto
+                    {
+                        Name = queue,
+                        Length = counters.enqueuedCount,
+                        Fetched = counters.fetchedCount,
+                        FirstJobs = enqueudJobs
+                    });
+                }
+
+                return result;
+
+            }
+               
 		}
 
 		public IList<Storage.Monitoring.ServerDto> Servers()

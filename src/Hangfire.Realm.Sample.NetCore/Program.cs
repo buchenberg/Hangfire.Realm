@@ -20,7 +20,7 @@ namespace Hangfire.Realm.Sample.NetCore
             
             BackgroundJobServerOptions serverOptions = new BackgroundJobServerOptions()
             {
-                WorkerCount = 5,
+                WorkerCount = 1,
                 Queues = new[] { "critical", "default" },
                 ServerTimeout = TimeSpan.FromMinutes(10),
                 HeartbeatInterval = TimeSpan.FromSeconds(10),
@@ -32,7 +32,7 @@ namespace Hangfire.Realm.Sample.NetCore
             };
 
             GlobalConfiguration.Configuration
-            .UseLogProvider(new ColouredConsoleLogProvider(Logging.LogLevel.Info))
+            .UseLogProvider(new ColouredConsoleLogProvider(Logging.LogLevel.Trace))
             .UseRealmJobStorage(storageOptions);
 
             using (new BackgroundJobServer(serverOptions))

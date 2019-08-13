@@ -15,6 +15,7 @@ namespace Hangfire.Realm
             if (options == null) throw new ArgumentNullException(nameof(options));
             _jobQueue = new RealmJobQueue(storage, options);
             _monitoringApi = storage.GetMonitoringApi();
+            
         }
 
         
