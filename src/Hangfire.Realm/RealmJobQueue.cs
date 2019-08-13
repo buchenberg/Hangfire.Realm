@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using Hangfire.Annotations;
 using Hangfire.Logging;
+using Hangfire.Realm.Extensions;
 using Hangfire.Realm.Models;
 using Hangfire.Storage;
 
@@ -51,11 +52,6 @@ namespace Hangfire.Realm
 
                 if (fetchedJob != null) return fetchedJob;
 
-                //TODO
-                //if (_semaphore.WaitAny(queues, cancellationToken, _storageOptions.QueuePollInterval, out var queue))
-                //{
-                //    fetchedJob = TryGetEnqueuedJob(queue, cancellationToken);
-                //}
             }
 
             return fetchedJob;
@@ -86,11 +82,13 @@ namespace Hangfire.Realm
 
         private RealmFetchedJob TryGetEnqueuedJob(string queue, CancellationToken cancellationToken)
         {
+            //TODO cancellation
             using (var realm = _dbContext.GetRealm())
             {
                 var enqueuedJobs = realm.All<JobQueueDto>();
                 JobQueueDto fetchedJob = enqueuedJobs
                 .Where(_ => _.Queue == queue)
+                .OrderBy(_ => _.Created)
                 //.Where(_ => _.FetchedAt < _invisibilityTimeout)
                 .FirstOrDefault();
                 if (fetchedJob != null)

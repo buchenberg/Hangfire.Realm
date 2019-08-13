@@ -242,6 +242,26 @@ namespace Hangfire.Realm
             return deletedServerCount;
         }
         // Set operations
+        public override List<string> GetRangeFromSet([NotNull] string key, int startingFrom, int endingAt)
+        {
+            if (key == null) throw new ArgumentNullException(nameof(key));
+            List<string> result = new List<string>();
+            int counter = 0;
+            var realm = _realmDbContext.GetRealm();
+            var sets = realm.All<SetDto>()
+                    .Where(_ => _.Key == key)
+                    .OrderByDescending(_ => _.Created).ToArray();
+            int count = sets.Count();
+            for (int i = 1; i <= count; i++)
+            {
+                if ((counter >= startingFrom) && (counter <= endingAt))
+                {
+                    result.Add(sets[i].Value);
+                }
+            }
+
+            return result;
+        }
         [NotNull]
         public override HashSet<string> GetAllItemsFromSet(string key)
 	    {
