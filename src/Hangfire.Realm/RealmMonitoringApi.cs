@@ -21,41 +21,11 @@ namespace Hangfire.Realm
             _storage = storage;
         }
 
-        public IEnumerable<string> GetQueues()
-        {
-            string sqlQuery = $@"select distinct(Queue) from [{_storage.SchemaName}].JobQueue with (nolock)";
-
-            lock (_cacheLock)
-            {
-                if (_queuesCache.Count == 0 || _cacheUpdated.Elapsed > QueuesCacheTimeout)
-                {
-                    var result = _storage.UseConnection(null, connection =>
-                    {
-                        return connection.Query(sqlQuery, commandTimeout: _storage.CommandTimeout).Select(x => (string)x.Queue).ToList();
-                    });
-
-                    _queuesCache = result;
-                    _cacheUpdated = Stopwatch.StartNew();
-                }
-
-                return _queuesCache.ToList();
-            }
-        }
-
         public IList<QueueWithTopEnqueuedJobsDto> Queues()
 		{
             using (var realm = _realmDbContext.GetRealm())
             {
-                var queues = realm
-                   .All<JobQueueDto>()
-                   .Select(q => q.Queue)
-                   .Distinct().ToList();
-
-                var tuples = _storage.QueueProviders
-                .Select(x => x.GetJobQueueMonitoringApi())
-                .SelectMany(x => x.GetQueues(), (monitoring, queue) => new { Monitoring = monitoring, Queue = queue })
-                .OrderBy(x => x.Queue)
-                .ToArray();
+                var queues = realm.GetQueues();
 
                 var result = new List<QueueWithTopEnqueuedJobsDto>(queues.Count);
                 foreach (var queue in queues)
@@ -81,22 +51,24 @@ namespace Hangfire.Realm
 
 		public IList<Storage.Monitoring.ServerDto> Servers()
 		{
-			var realm = _realmDbContext.GetRealm();
-			var servers = realm
-				.All<Models.ServerDto>()
-				.ToList()
-				.Select(s =>
-					new Storage.Monitoring.ServerDto
-					{
-						Name = s.Id,
-						Heartbeat = s.LastHeartbeat?.DateTime,
-						Queues = s.Queues,
-						StartedAt = s.StartedAt?.DateTime ?? default(DateTime),
-						WorkersCount = s.WorkerCount
-					})
-				.ToList();
+            using (var realm = _realmDbContext.GetRealm())
+            {
+                var servers = realm
+                .All<Models.ServerDto>()
+                .ToList()
+                .Select(s =>
+                    new Storage.Monitoring.ServerDto
+                    {
+                        Name = s.Id,
+                        Heartbeat = s.LastHeartbeat?.DateTime,
+                        Queues = s.Queues,
+                        StartedAt = s.StartedAt?.DateTime ?? default,
+                        WorkersCount = s.WorkerCount
+                    })
+                .ToList();
 
-			return servers;
+                return servers;
+            }
 		}
 
 		public JobDetailsDto JobDetails(string jobId)
