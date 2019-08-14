@@ -246,6 +246,7 @@ namespace Hangfire.Realm
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
             List<string> result = new List<string>();
+
             var realm = _realmDbContext.GetRealm();
             var sets = realm.All<SetDto>()
                     .Where(_ => _.Key == key)
@@ -281,17 +282,8 @@ namespace Hangfire.Realm
             {
                 throw new ArgumentException("The `toScore` value must be higher or equal to the `fromScore` value.");
             }
-            var realm = _realmDbContext.GetRealm();
-            var set = realm.All<SetDto>()
-                .Where(_ => _.Key.StartsWith("key"))
-                .Where(_ => _.Score >= fromScore)
-                .Where(_ => _.Score <= toScore)
-                .OrderBy(_ => _.Score)
-                .FirstOrDefault();
 
-            var value = set?.Value;
-
-            return value;
+            return GetFirstByLowestScoreFromSet(key, fromScore, toScore, 1).FirstOrDefault();
 
         }
         public override List<string> GetFirstByLowestScoreFromSet(string key, double fromScore, double toScore, int count)
@@ -299,18 +291,19 @@ namespace Hangfire.Realm
             if (key == null) throw new ArgumentNullException(nameof(key));
             if (count <= 0) throw new ArgumentException("The value must be a positive number", nameof(count));
             if (toScore < fromScore) throw new ArgumentException("The `toScore` value must be higher or equal to the `fromScore` value.", nameof(toScore));
-
+            List<string> result = new List<string>();
             var realm = _realmDbContext.GetRealm();
-            var set = realm.All<SetDto>()
+            var sets = realm.All<SetDto>()
                 .Where(_ => _.Key.StartsWith("key"))
                 .Where(_ => _.Score >= fromScore)
                 .Where(_ => _.Score <= toScore)
-                .OrderBy(_ => _.Score)
-                .ToList();
+                .OrderBy(_ => _.Score).ToArray();
+            for (var i = 0; i < count && i < sets.Count(); i++)
+            {
+                result.Add(sets[i].Value);
+            }
+            return result;
 
-            var value = set?.Value;
-
-            return value;
         }
         // hash operations
         public override void SetRangeInHash(string key, IEnumerable<KeyValuePair<string, string>> keyValuePairs)

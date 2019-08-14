@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Hangfire.Common;
 using Hangfire.Realm.Models;
@@ -7,6 +8,7 @@ using Hangfire.Realm.Tests.Utils;
 using Hangfire.States;
 using Hangfire.Storage;
 using NUnit.Framework;
+using Realms;
 
 namespace Hangfire.Realm.Tests
 {
@@ -25,17 +27,21 @@ namespace Hangfire.Realm.Tests
 	    [SetUp]
 	    public void Init()
 	    {
-		    _realmDbContext = new RealmDbContext(ConnectionUtils.GetRealmConfiguration());
+            var storage = new RealmJobStorage(new RealmJobStorageOptions
+            {
+                RealmConfiguration = ConnectionUtils.GetRealmConfiguration()
+            });
+            _realmDbContext = new RealmDbContext(ConnectionUtils.GetRealmConfiguration());
 		    _realm = _realmDbContext.GetRealm();
 		    
 		    _realm.Write(() => _realm.RemoveAll());
-		    _monitoringApi = new RealmMonitoringApi(_realmDbContext);
+		    _monitoringApi = new RealmMonitoringApi(storage, _realmDbContext);
 	    }
 
 	    [TearDown]
 	    public void Cleanup()
 	    {
-		    
+            _realm.Dispose();
 	    }
 
         
