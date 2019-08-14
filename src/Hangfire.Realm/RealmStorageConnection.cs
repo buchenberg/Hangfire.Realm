@@ -298,8 +298,16 @@ namespace Hangfire.Realm
             return value;
 
         }
+        public override List<string> GetFirstByLowestScoreFromSet(string key, double fromScore, double toScore, int count)
+        {
+            if (key == null) throw new ArgumentNullException(nameof(key));
+            if (count <= 0) throw new ArgumentException("The value must be a positive number", nameof(count));
+            if (toScore < fromScore) throw new ArgumentException("The `toScore` value must be higher or equal to the `fromScore` value.", nameof(toScore));
+
+            throw new NotImplementedException();
+        }
         // hash operations
-	    public override void SetRangeInHash(string key, IEnumerable<KeyValuePair<string, string>> keyValuePairs)
+        public override void SetRangeInHash(string key, IEnumerable<KeyValuePair<string, string>> keyValuePairs)
 	    {
 		    throw new NotImplementedException();
 	    }
@@ -308,5 +316,58 @@ namespace Hangfire.Realm
 	    {
 		    throw new NotImplementedException();
 	    }
+        public override TimeSpan GetSetTtl(string key)
+        {
+            if (key == null) throw new ArgumentNullException(nameof(key));
+
+            throw new NotImplementedException();
+        }
+
+        public override long GetCounter(string key)
+        {
+            if (key == null) throw new ArgumentNullException(nameof(key));
+
+            throw new NotImplementedException();
+        }
+
+        public override TimeSpan GetHashTtl(string key)
+        {
+            if (key == null) throw new ArgumentNullException(nameof(key));
+
+            throw new NotImplementedException();
+        }
+
+        public override string GetValueFromHash(string key, string name)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override long GetListCount(string key)
+        {
+            if (key == null) throw new ArgumentNullException(nameof(key));
+
+            throw new NotImplementedException();
+        }
+
+        public override TimeSpan GetListTtl(string key)
+        {
+            if (key == null) throw new ArgumentNullException(nameof(key));
+
+            throw new NotImplementedException();
+        }
+
+        public override List<string> GetRangeFromList(string key, int startingFrom, int endingAt)
+        {
+            if (key == null) throw new ArgumentNullException(nameof(key));
+
+            throw new NotImplementedException();
+        }
+
+        public override List<string> GetAllItemsFromList(string key)
+        {
+            if (key == null) throw new ArgumentNullException(nameof(key));
+            throw new NotImplementedException();
+        }
+
     }
 }
