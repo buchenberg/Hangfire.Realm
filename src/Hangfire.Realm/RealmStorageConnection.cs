@@ -421,11 +421,15 @@ namespace Hangfire.Realm
                 .ToList();
             foreach (var hash in hashList)
             {
-                var fieldMatch = hash.Fields.Where(_ => _.Key == key).FirstOrDefault();
-                result = fieldMatch.Value;
+                foreach (var field in hash.Fields.Where(_ => _.Key == name))
+                {
+                    result += field.Value;
+                }
             }
             return result;
         }
+        
+
 
         public override long GetListCount(string key)
         {

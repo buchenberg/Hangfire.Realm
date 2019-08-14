@@ -1,4 +1,5 @@
 using Realms;
+using System;
 
 namespace Hangfire.Realm.Models
 {
@@ -7,9 +8,5 @@ namespace Hangfire.Realm.Models
         public string Key { get; set; }
         public string Value { get; set; }
 		
-        public FieldDto()
-        {
-		    
-        }
     }
 }

@@ -112,7 +112,32 @@ namespace Hangfire.Realm.Tests
             Assert.AreEqual("Value2", result["Key2"]);
             
         }
+        [Test]
+        public void GetValueFromHash_ReturnsValue_OfAGivenField()
+        {
+            var realm = _realmDbContext.GetRealm();
+            var hash1 = new HashDto { Key = "hash-1" };
+            hash1.Fields.Add(new FieldDto { Key = "field-1", Value = "1" });
 
+            var hash2 = new HashDto { Key = "hash-1" };
+            hash2.Fields.Add(new FieldDto { Key = "field-2", Value = "2" });
+
+            var hash3 = new HashDto { Key = "hash-2" };
+            hash3.Fields.Add(new FieldDto { Key = "field-1", Value = "3" });
+
+            realm.Write(() =>
+            {
+                realm.Add(hash1);
+                realm.Add(hash2);
+                realm.Add(hash3);
+            });
+
+            // Act
+            var result = _connection.GetValueFromHash("hash-1", "field-1");
+
+            // Assert
+            Assert.AreEqual("1", result);
+        }
         [Test]
         public void CreateExpiredJob_CreatesAJobInTheStorage_AndSetsItsParameters()
         {
