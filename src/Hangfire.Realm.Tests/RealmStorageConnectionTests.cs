@@ -113,6 +113,37 @@ namespace Hangfire.Realm.Tests
             
         }
         [Test]
+        public void SetRangeInHash_MergesAllRecords()
+        {
+
+            var fieldDictionary = new Dictionary<string, string>
+                {
+                    { "Key1", "Value1" },
+                    { "Key2", "Value2" }
+                };
+            var realm = _realmDbContext.GetRealm();
+            
+            _connection.SetRangeInHash("some-hash", fieldDictionary);
+
+            var fieldLists = realm.All<HashDto>()
+                .Where(_ => _.Key == "some-hash")
+                .ToList()
+                .Select(_ => _.Fields);
+            var result = new Dictionary<string, string>();
+            foreach (var fieldList in fieldLists)
+            {
+                foreach (var field in fieldList)
+                {
+                    result.Add(field.Key, field.Value);
+                }
+
+            }
+
+            Assert.AreEqual("Value1", result["Key1"]);
+            Assert.AreEqual("Value2", result["Key2"]);
+
+        }
+        [Test]
         public void GetValueFromHash_ReturnsValue_OfAGivenField()
         {
             var realm = _realmDbContext.GetRealm();

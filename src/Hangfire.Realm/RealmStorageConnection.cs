@@ -312,53 +312,19 @@ namespace Hangfire.Realm
             if (key == null) throw new ArgumentNullException(nameof(key));
             if (keyValuePairs == null) throw new ArgumentNullException(nameof(keyValuePairs));
             var realm = _realmDbContext.GetRealm();
-            var query = realm.All<HashDto>();
-
-            throw new NotImplementedException();
-
-            //            var sql =
-            //$@";merge [{_storage.SchemaName}].Hash with (holdlock, forceseek) as Target
-            //using (VALUES (@key, @field, @value)) as Source ([Key], Field, Value)
-            //on Target.[Key] = Source.[Key] and Target.Field = Source.Field
-            //when matched then update set Value = Source.Value
-            //when not matched then insert ([Key], Field, Value) values (Source.[Key], Source.Field, Source.Value);";
-
-            //            var lockResourceKey = $"{_storage.SchemaName}:Hash:Lock";
-
-            //            _storage.UseTransaction(_dedicatedConnection, (connection, transaction) =>
-            //            {
-            //                using (var commandBatch = new SqlCommandBatch(preferBatching: _storage.CommandBatchMaxTimeout.HasValue))
-            //                {
-            //                    if (!_storage.Options.DisableGlobalLocks)
-            //                    {
-            //                        commandBatch.Append(
-            //                            "SET XACT_ABORT ON;exec sp_getapplock @Resource=@resource, @LockMode=N'Exclusive', @LockOwner=N'Transaction', @LockTimeout=-1;",
-            //                            new SqlParameter("@resource", lockResourceKey));
-            //                    }
-
-            //                    foreach (var keyValuePair in keyValuePairs)
-            //                    {
-            //                        commandBatch.Append(sql,
-            //                            new SqlParameter("@key", key),
-            //                            new SqlParameter("@field", keyValuePair.Key),
-            //                            new SqlParameter("@value", (object)keyValuePair.Value ?? DBNull.Value));
-            //                    }
-
-            //                    if (!_storage.Options.DisableGlobalLocks)
-            //                    {
-            //                        commandBatch.Append(
-            //                            "exec sp_releaseapplock @Resource=@resource, @LockOwner=N'Transaction';",
-            //                            new SqlParameter("@resource", lockResourceKey));
-            //                    }
-
-            //                    commandBatch.Connection = connection;
-            //                    commandBatch.Transaction = transaction;
-            //                    commandBatch.CommandTimeout = _storage.CommandTimeout;
-            //                    commandBatch.CommandBatchMaxTimeout = _storage.CommandBatchMaxTimeout;
-
-            //                    commandBatch.ExecuteNonQuery();
-            //                }
-            //            });
+            realm.Write(() =>
+            {
+                HashDto hash = new HashDto
+                {
+                    Key = key,
+                    Created = DateTimeOffset.UtcNow
+                };
+                foreach (var field in keyValuePairs)
+                {
+                    hash.Fields.Add(new FieldDto { Key = field.Key, Value = field.Value });
+                }
+                realm.Add(hash);
+            });
         }
         [CanBeNull]
         public override Dictionary<string, string> GetAllEntriesFromHash(string key)
@@ -429,14 +395,15 @@ namespace Hangfire.Realm
             return result;
         }
         
-
+        //List
 
         public override long GetListCount(string key)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
             var realm = _realmDbContext.GetRealm();
             var result = realm.All<ListDto>()
-                .Where(_ => _.Key == key).Count();
+                .Where(_ => _.Key == key)
+                .Count();
             return (long)result;
         }
 
