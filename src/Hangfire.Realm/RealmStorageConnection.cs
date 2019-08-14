@@ -401,17 +401,39 @@ namespace Hangfire.Realm
 
             throw new NotImplementedException();
         }
-
+        public override long GetHashCount(string key)
+        {
+            if (key == null) throw new ArgumentNullException(nameof(key));
+            var realm = _realmDbContext.GetRealm();
+            var result = realm.All<HashDto>()
+                .Where(_ => _.Key == key)
+                .Count();
+            return (long)result;
+        }
         public override string GetValueFromHash(string key, string name)
         {
-            throw new NotImplementedException();
+            if (key == null) throw new ArgumentNullException(nameof(key));
+            if (name == null) throw new ArgumentNullException(nameof(name));
+            string result = string.Empty;
+            var realm = _realmDbContext.GetRealm();
+            var hashList = realm.All<HashDto>()
+                .Where(_ => _.Key == key)
+                .ToList();
+            foreach (var hash in hashList)
+            {
+                var fieldMatch = hash.Fields.Where(_ => _.Key == key).FirstOrDefault();
+                result = fieldMatch.Value;
+            }
+            return result;
         }
 
         public override long GetListCount(string key)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-
-            throw new NotImplementedException();
+            var realm = _realmDbContext.GetRealm();
+            var result = realm.All<ListDto>()
+                .Where(_ => _.Key == key).Count();
+            return (long)result;
         }
 
         public override TimeSpan GetListTtl(string key)
