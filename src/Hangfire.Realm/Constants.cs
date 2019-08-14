@@ -8,5 +8,7 @@
         public const string StatsFailed = "stats:failed";
 
         public const string RecurringJobs = "recurring-jobs";
+
     }
+
 }

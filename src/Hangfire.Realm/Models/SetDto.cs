@@ -17,11 +17,6 @@ namespace Hangfire.Realm.Models
         
         public double Score { get; set; }
 
-        //Not compatable with CreateCompoundKey()
-        //public string GetCompoundKey()
-        //{
-        //    return CreateCompoundKey(Key, Value);
-        //}
         public static string CreateCompoundKey(string key, string value)
         {
             return $"{key}<{value}>";

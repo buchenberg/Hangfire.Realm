@@ -128,6 +128,7 @@ namespace Hangfire.Realm
                 {
                     try
                     {
+
                         _realmDbContext.Write(r =>
                         {
                             _lockDto.ExpireAt = DateTimeOffset.UtcNow.Add(distributedLockLifetime);

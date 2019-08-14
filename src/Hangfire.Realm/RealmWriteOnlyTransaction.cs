@@ -101,7 +101,7 @@ namespace Hangfire.Realm
 
         public override void AddToQueue(string queue, string jobId)
         {
-            _realm.Add(new QueuedJobDto {Created = DateTimeOffset.UtcNow, Queue = queue, JobId = jobId});
+            _realm.Add(new JobQueueDto {Id = Guid.NewGuid().ToString(), Created = DateTimeOffset.UtcNow, Queue = queue, JobId = jobId});
         }
 
         public override void IncrementCounter(string key)

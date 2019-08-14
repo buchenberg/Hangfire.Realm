@@ -8,6 +8,7 @@ using Hangfire.Server;
 using Hangfire.States;
 using Hangfire.Storage;
 using NUnit.Framework;
+using Realms;
 
 namespace Hangfire.Realm.Tests
 {
@@ -23,7 +24,10 @@ namespace Hangfire.Realm.Tests
         public void Init()
         {
             _realmDbContext = new RealmDbContext(ConnectionUtils.GetRealmConfiguration());
-            _connection = new RealmStorageConnection(_realmDbContext, new RealmJobStorageOptions());
+            _connection = new RealmStorageConnection(_realmDbContext, new RealmJobStorageOptions()
+            {
+                RealmConfiguration = new RealmConfiguration()
+            });
             _realm = _realmDbContext.GetRealm();
             _realm.Write(() => _realm.RemoveAll());
         }
@@ -32,6 +36,48 @@ namespace Hangfire.Realm.Tests
         public void Cleanup()
         {
 
+        }
+
+        [Test]
+        public void AcquireLock_ReturnsNonNullInstance()
+        {
+            var @lock = _connection.AcquireDistributedLock("1", TimeSpan.FromSeconds(1));
+            Assert.NotNull(@lock);
+        }
+
+        [Test]
+        public void AnnounceServer_CreatesOrUpdatesARecord()
+        {
+            // ARRANGE
+            var context1 = new ServerContext
+            {
+                Queues = new[] { "critical", "default" },
+                WorkerCount = 4
+            };
+            var context2 = new ServerContext
+            {
+                Queues = new[] { "default" },
+                WorkerCount = 1000
+            };
+
+            // ACT - Create
+            _connection.AnnounceServer("server", context1);
+
+            // ASSERT
+            var server = _realm.Find<ServerDto>("server");
+            Assert.AreEqual("server", server.Id);
+            Assert.AreEqual(context1.WorkerCount, server.WorkerCount);
+            Assert.AreEqual(context1.Queues, server.Queues);
+            Assert.NotNull(server.StartedAt);
+            Assert.NotNull(server.LastHeartbeat);
+
+            // ACT - Update
+            _connection.AnnounceServer("server", context2);
+
+            // ASSERT
+            var sameServer = _realm.Find<ServerDto>("server");
+            Assert.AreEqual("server", sameServer.Id);
+            Assert.AreEqual(context2.WorkerCount, sameServer.WorkerCount);
         }
 
         [Test]
@@ -144,42 +190,7 @@ namespace Hangfire.Realm.Tests
             Assert.True(DateTime.UtcNow.AddMinutes(-1) < result.CreatedAt);
             Assert.True(result.CreatedAt < DateTime.UtcNow.AddMinutes(1));
         }
-
-        [Test]
-        public void AnnounceServer_CreatesOrUpdatesARecord()
-        {
-            // ARRANGE
-            var context1 = new ServerContext
-            {
-                Queues = new[] { "critical", "default" },
-                WorkerCount = 4
-            };
-            var context2 = new ServerContext
-            {
-                Queues = new[] { "default" },
-                WorkerCount = 1000
-            };
-
-            // ACT - Create
-            _connection.AnnounceServer("server", context1);
-
-            // ASSERT
-            var server = _realm.Find<ServerDto>("server");
-            Assert.AreEqual("server", server.Id);
-            Assert.AreEqual(context1.WorkerCount, server.WorkerCount);
-            Assert.AreEqual(context1.Queues, server.Queues);
-            Assert.NotNull(server.StartedAt);
-            Assert.NotNull(server.LastHeartbeat);
-
-            // ACT - Update
-            _connection.AnnounceServer("server", context2);
-
-            // ASSERT
-            var sameServer = _realm.Find<ServerDto>("server");
-            Assert.AreEqual("server", sameServer.Id);
-            Assert.AreEqual(context2.WorkerCount, sameServer.WorkerCount);
-        }
-
+        
         [Test]
         public void Heartbeat_ThrowsAnException_WhenServerIdIsNull()
         {
@@ -254,6 +265,7 @@ namespace Hangfire.Realm.Tests
         {
             Assert.Throws<ArgumentNullException>(() => _connection.RemoveServer(null));
         }
+
         [Test]
         public void RemoveTimedOutServers_RemovesServers()
         {
@@ -283,6 +295,7 @@ namespace Hangfire.Realm.Tests
             Assert.AreEqual("server2", liveServer.Id);
             Assert.AreEqual(2, deletedServerCount);
         }
+
         [Test]
         public void GetFirstByLowestScoreFromSet_ReturnsTheValueWithTheLowestScore()
         {
@@ -317,6 +330,16 @@ namespace Hangfire.Realm.Tests
             var result = _connection.GetFirstByLowestScoreFromSet("key", -1.0, 3.0);
 
             Assert.AreEqual("-1.0", result);
+        }
+
+        [Test]
+        public void GetFirstByLowestScoreFromSet_ReturnsNull_WhenTheKeyDoesNotExist()
+        {
+
+                var result = _connection.GetFirstByLowestScoreFromSet(
+                    "key", 0, 1);
+                Assert.Null(result);
+
         }
     }
 }

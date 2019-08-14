@@ -419,7 +419,7 @@ namespace Hangfire.Realm.Tests
 			
 			_realm.Write(() =>_realm.Add(jobDto));
 			
-			var jobQueueDto = new QueuedJobDto
+			var jobQueueDto = new JobQueueDto
 			{
 				Id = Guid.NewGuid().ToString(),
 				FetchedAt = null,

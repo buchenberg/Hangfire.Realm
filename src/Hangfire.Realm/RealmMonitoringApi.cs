@@ -13,58 +13,62 @@ namespace Hangfire.Realm
 	internal class RealmMonitoringApi : IMonitoringApi
 	{
 		private readonly IRealmDbContext _realmDbContext;
+        private readonly RealmJobStorage _storage;
 
-		public RealmMonitoringApi(IRealmDbContext realmDbContext)
+        public RealmMonitoringApi(RealmJobStorage storage, IRealmDbContext realmDbContext)
 		{
 			_realmDbContext = realmDbContext;
-		}
+            _storage = storage;
+        }
 
-		public IList<QueueWithTopEnqueuedJobsDto> Queues()
+        public IList<QueueWithTopEnqueuedJobsDto> Queues()
 		{
-			var realm = _realmDbContext.GetRealm();
-			var queues = realm
-				.All<QueuedJobDto>()
-				.Select(q => q.Queue)
-				.Distinct()
-				.ToList();
+            using (var realm = _realmDbContext.GetRealm())
+            {
+                var queues = realm.GetQueues();
 
-			var result = new List<QueueWithTopEnqueuedJobsDto>(queues.Count);
-			foreach (var queue in queues)
-			{
-				var enqueuedJobIds = realm.GetEnqueuedJobIds(queue, 0, 5);
-				var counters = realm.GetEnqueuedAndFetchedCount(queue);
-				var enqueudJobs = realm.GetEnqueuedJobs(enqueuedJobIds);
+                var result = new List<QueueWithTopEnqueuedJobsDto>(queues.Count);
+                foreach (var queue in queues)
+                {
+                    var enqueuedJobIds = realm.GetEnqueuedJobIds(queue, 0, 5);
+                    var counters = realm.GetEnqueuedAndFetchedCount(queue);
+                    var enqueudJobs = realm.GetEnqueuedJobs(enqueuedJobIds);
 
-				result.Add(new QueueWithTopEnqueuedJobsDto
-				{
-					Name = queue,
-					Length = counters.enqueuedCount,
-					Fetched = counters.fetchedCount,
-					FirstJobs = enqueudJobs
-				});
-			}
+                    result.Add(new QueueWithTopEnqueuedJobsDto
+                    {
+                        Name = queue,
+                        Length = counters.enqueuedCount,
+                        Fetched = counters.fetchedCount,
+                        FirstJobs = enqueudJobs
+                    });
+                }
 
-			return result;
+                return result;
+
+            }
+               
 		}
 
 		public IList<Storage.Monitoring.ServerDto> Servers()
 		{
-			var realm = _realmDbContext.GetRealm();
-			var servers = realm
-				.All<Models.ServerDto>()
-				.ToList()
-				.Select(s =>
-					new Storage.Monitoring.ServerDto
-					{
-						Name = s.Id,
-						Heartbeat = s.LastHeartbeat?.DateTime,
-						Queues = s.Queues,
-						StartedAt = s.StartedAt?.DateTime ?? default(DateTime),
-						WorkersCount = s.WorkerCount
-					})
-				.ToList();
+            using (var realm = _realmDbContext.GetRealm())
+            {
+                var servers = realm
+                .All<Models.ServerDto>()
+                .ToList()
+                .Select(s =>
+                    new Storage.Monitoring.ServerDto
+                    {
+                        Name = s.Id,
+                        Heartbeat = s.LastHeartbeat?.DateTime,
+                        Queues = s.Queues,
+                        StartedAt = s.StartedAt?.DateTime ?? default,
+                        WorkersCount = s.WorkerCount
+                    })
+                .ToList();
 
-			return servers;
+                return servers;
+            }
 		}
 
 		public JobDetailsDto JobDetails(string jobId)
@@ -225,13 +229,13 @@ namespace Hangfire.Realm
 		public long EnqueuedCount(string queue)
 		{
 			var realm = _realmDbContext.GetRealm();
-			return realm.All<QueuedJobDto>().Count(j => j.Queue == queue && j.FetchedAt == null);
+			return realm.All<JobQueueDto>().Count(j => j.Queue == queue && j.FetchedAt == null);
 		}
 
 		public long FetchedCount(string queue)
 		{
 			var realm = _realmDbContext.GetRealm();
-			return realm.All<QueuedJobDto>().Count(j => j.Queue == queue && j.FetchedAt != null);
+			return realm.All<JobQueueDto>().Count(j => j.Queue == queue && j.FetchedAt != null);
 		}
 
 		public long FailedCount()
@@ -298,13 +302,13 @@ namespace Hangfire.Realm
 
 					return new
 					{
-						Id = job.Id,
-						InvocationData = job.InvocationData,
-						Arguments = job.Arguments,
-						CreatedAt = job.Created,
-						ExpireAt = job.ExpireAt,
+						job.Id,
+						job.InvocationData,
+						job.Arguments,
+						job.Created,
+						job.ExpireAt,
 						FetchedAt = (DateTimeOffset?)null,
-						StateName = job.StateName,
+						job.StateName,
 						StateReason = state?.Reason,
 						StateData = state?.Data
 					};

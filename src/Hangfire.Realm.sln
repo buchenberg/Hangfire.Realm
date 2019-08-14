@@ -7,7 +7,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hangfire.Realm", "Hangfire.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hangfire.Realm.Tests", "Hangfire.Realm.Tests\Hangfire.Realm.Tests.csproj", "{1B5096A2-C30E-41AA-8AA2-F64D2BC22931}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hangfire.Realm.Sample.NETCore.Generic", "Hangfire.Realm.Sample.NETCore.Generic\Hangfire.Realm.Sample.NETCore.Generic.csproj", "{A60B1C2B-B88F-420D-BFB7-62C0122EC2EF}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hangfire.Realm.Sample.ASP.NET.Core", "Hangfire.Realm.Sample.ASP.NET.Core\Hangfire.Realm.Sample.ASP.NET.Core.csproj", "{D845EA18-D5B5-4FD4-BD3F-744FD1A54701}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Hangfire.Realm.Sample.NET.Core", "Hangfire.Realm.Sample.NET.Core\Hangfire.Realm.Sample.NET.Core.csproj", "{51484B0D-967A-45D7-8629-64512ECEDFAC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -23,10 +25,14 @@ Global
 		{1B5096A2-C30E-41AA-8AA2-F64D2BC22931}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1B5096A2-C30E-41AA-8AA2-F64D2BC22931}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1B5096A2-C30E-41AA-8AA2-F64D2BC22931}.Release|Any CPU.Build.0 = Release|Any CPU
-		{A60B1C2B-B88F-420D-BFB7-62C0122EC2EF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{A60B1C2B-B88F-420D-BFB7-62C0122EC2EF}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{A60B1C2B-B88F-420D-BFB7-62C0122EC2EF}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{A60B1C2B-B88F-420D-BFB7-62C0122EC2EF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D845EA18-D5B5-4FD4-BD3F-744FD1A54701}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D845EA18-D5B5-4FD4-BD3F-744FD1A54701}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D845EA18-D5B5-4FD4-BD3F-744FD1A54701}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D845EA18-D5B5-4FD4-BD3F-744FD1A54701}.Release|Any CPU.Build.0 = Release|Any CPU
+		{51484B0D-967A-45D7-8629-64512ECEDFAC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{51484B0D-967A-45D7-8629-64512ECEDFAC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{51484B0D-967A-45D7-8629-64512ECEDFAC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{51484B0D-967A-45D7-8629-64512ECEDFAC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
