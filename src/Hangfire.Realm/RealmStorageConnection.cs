@@ -308,18 +308,84 @@ namespace Hangfire.Realm
         // hash operations
         public override void SetRangeInHash(string key, IEnumerable<KeyValuePair<string, string>> keyValuePairs)
 	    {
-		    throw new NotImplementedException();
-	    }
+
+            if (key == null) throw new ArgumentNullException(nameof(key));
+            if (keyValuePairs == null) throw new ArgumentNullException(nameof(keyValuePairs));
+            var realm = _realmDbContext.GetRealm();
+            var query = realm.All<HashDto>();
+
+            throw new NotImplementedException();
+
+            //            var sql =
+            //$@";merge [{_storage.SchemaName}].Hash with (holdlock, forceseek) as Target
+            //using (VALUES (@key, @field, @value)) as Source ([Key], Field, Value)
+            //on Target.[Key] = Source.[Key] and Target.Field = Source.Field
+            //when matched then update set Value = Source.Value
+            //when not matched then insert ([Key], Field, Value) values (Source.[Key], Source.Field, Source.Value);";
+
+            //            var lockResourceKey = $"{_storage.SchemaName}:Hash:Lock";
+
+            //            _storage.UseTransaction(_dedicatedConnection, (connection, transaction) =>
+            //            {
+            //                using (var commandBatch = new SqlCommandBatch(preferBatching: _storage.CommandBatchMaxTimeout.HasValue))
+            //                {
+            //                    if (!_storage.Options.DisableGlobalLocks)
+            //                    {
+            //                        commandBatch.Append(
+            //                            "SET XACT_ABORT ON;exec sp_getapplock @Resource=@resource, @LockMode=N'Exclusive', @LockOwner=N'Transaction', @LockTimeout=-1;",
+            //                            new SqlParameter("@resource", lockResourceKey));
+            //                    }
+
+            //                    foreach (var keyValuePair in keyValuePairs)
+            //                    {
+            //                        commandBatch.Append(sql,
+            //                            new SqlParameter("@key", key),
+            //                            new SqlParameter("@field", keyValuePair.Key),
+            //                            new SqlParameter("@value", (object)keyValuePair.Value ?? DBNull.Value));
+            //                    }
+
+            //                    if (!_storage.Options.DisableGlobalLocks)
+            //                    {
+            //                        commandBatch.Append(
+            //                            "exec sp_releaseapplock @Resource=@resource, @LockOwner=N'Transaction';",
+            //                            new SqlParameter("@resource", lockResourceKey));
+            //                    }
+
+            //                    commandBatch.Connection = connection;
+            //                    commandBatch.Transaction = transaction;
+            //                    commandBatch.CommandTimeout = _storage.CommandTimeout;
+            //                    commandBatch.CommandBatchMaxTimeout = _storage.CommandBatchMaxTimeout;
+
+            //                    commandBatch.ExecuteNonQuery();
+            //                }
+            //            });
+        }
         [CanBeNull]
         public override Dictionary<string, string> GetAllEntriesFromHash(string key)
 	    {
-		    throw new NotImplementedException();
-	    }
+            if (key == null) throw new ArgumentNullException(nameof(key));
+            var realm = _realmDbContext.GetRealm();
+            var hashList = realm.All<HashDto>()
+                .Where(_ => _.Key == key)
+                .ToList();
+            var result = new Dictionary<string, string>();
+            //TODO: This is wonky
+            foreach (var hash in hashList)
+            {
+                foreach (var field in hash.Fields)
+                {
+                    result.Add(field.Key, field.Value);
+                }
+                
+            }
+            return result.Count != 0 ? result : null;
+
+        }
         public override TimeSpan GetSetTtl(string key)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-
             throw new NotImplementedException();
+
         }
 
         public override long GetCounter(string key)

@@ -6,7 +6,6 @@ namespace Hangfire.Realm.Models
 {
     public class HashDto : RealmObject, IExpireAt
     {
-        [PrimaryKey]
         public string Key { get; set; }
 
         public DateTimeOffset Created { get; set; } = DateTimeOffset.Now;
