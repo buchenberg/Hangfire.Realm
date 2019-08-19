@@ -31,7 +31,7 @@ namespace Hangfire.Realm.Sample.ASP.NET.Core
         {
             RealmJobStorageOptions storageOptions = new RealmJobStorageOptions
             {
-                RealmConfiguration = new RealmConfiguration(Path.Combine(@"C:\", "Hangfire.Realm.Sample.NetCore.realm"))
+                RealmConfiguration = new RealmConfiguration(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Hangfire.Realm.Sample.NetCore.realm"))
             };
 
             services.AddHangfire(config =>

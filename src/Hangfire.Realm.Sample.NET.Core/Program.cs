@@ -15,7 +15,7 @@ namespace Hangfire.Realm.Sample.NetCore
         {
             RealmJobStorageOptions storageOptions = new RealmJobStorageOptions
             {
-                RealmConfiguration = new RealmConfiguration(Path.Combine(@"C:\", "Hangfire.Realm.Sample.NetCore.realm")),
+                RealmConfiguration = new RealmConfiguration(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Hangfire.Realm.Sample.NetCore.realm")),
                 QueuePollInterval = TimeSpan.FromSeconds(1),
                 SlidingInvisibilityTimeout = TimeSpan.FromSeconds(10)
             };
