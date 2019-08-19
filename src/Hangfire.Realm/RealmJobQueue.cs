@@ -104,7 +104,7 @@ namespace Hangfire.Realm
                 {
                     var fetchedAt = DateTimeOffset.UtcNow;
                     job.FetchedAt = fetchedAt;
-                    fetchedJob = new RealmFetchedJob(_storage, _dbContext, job.Id, job.JobId, job.Queue, fetchedAt);
+                    fetchedJob = new RealmFetchedJob(_storage, job.Id, job.JobId, job.Queue, fetchedAt);
                     if (Logger.IsTraceEnabled())
                     {
                         Logger.Trace($"Fetched job {job.JobId} from '{queue}' Thread[{Thread.CurrentThread.ManagedThreadId}]");

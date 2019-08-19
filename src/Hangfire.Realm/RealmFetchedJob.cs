@@ -12,7 +12,6 @@ namespace Hangfire.Realm
         private static readonly ILog _logger = LogProvider.For<RealmFetchedJob>();
         private readonly object _syncRoot = new object();
         private readonly IRealmDbContext _dbContext;
-        private readonly RealmJobStorage _storage;
         private readonly string _id;
         private readonly Timer _timer;
         private bool _disposed;
@@ -21,22 +20,26 @@ namespace Hangfire.Realm
 
         public RealmFetchedJob(
             [NotNull] RealmJobStorage storage,
-            [NotNull] IRealmDbContext dbContext,
             [NotNull] string id,
             [NotNull] string jobId,
             [NotNull] string queue,
             [NotNull] DateTimeOffset? fetchedAt)
         {
+            if (storage == null)
+            {
+                throw new ArgumentNullException(nameof(storage));
+            }
             if (fetchedAt == null)
             {
                 throw new ArgumentNullException(nameof(fetchedAt));
             }
 
-            _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+            _dbContext = storage.GetDbContext() ?? throw new ArgumentNullException(nameof(storage));
             _id = id ?? throw new ArgumentNullException(nameof(id));
             JobId = jobId ?? throw new ArgumentNullException(nameof(jobId));
             Queue = queue ?? throw new ArgumentNullException(nameof(queue));
             FetchedAt = fetchedAt.Value;
+
             if (storage.SlidingInvisibilityTimeout.HasValue)
             {
                 var keepAliveInterval =
@@ -60,8 +63,12 @@ namespace Hangfire.Realm
                     realm.Write(() =>
                     {
                         var queuedJob = realm.Find<JobQueueDto>(_id);
-                        FetchedAt = DateTimeOffset.UtcNow;
-                        queuedJob.FetchedAt = FetchedAt;
+                        if (queuedJob != null)
+                        {
+                            FetchedAt = DateTimeOffset.UtcNow;
+                            queuedJob.FetchedAt = FetchedAt;
+                        }
+                        
                     });
 
                     if (!FetchedAt.HasValue)
@@ -85,50 +92,66 @@ namespace Hangfire.Realm
 
         public void RemoveFromQueue()
         {
-            var realm = _dbContext.GetRealm();
-            var queuedJob = realm.Find<JobQueueDto>(_id);
-            if (queuedJob != null)
+            lock (_syncRoot)
             {
-                realm.Write(() => {
-                realm.Remove(queuedJob);
-                if (_logger.IsTraceEnabled())
+                if (!FetchedAt.HasValue) return;
+                var realm = _dbContext.GetRealm();
+                var queuedJob = realm.Find<JobQueueDto>(_id);
+                if (queuedJob != null)
                 {
-                    _logger.Trace($"Requeue job '{JobId}' from queue '{Queue}'");
+                    realm.Write(() =>
+                    {
+                        realm.Remove(queuedJob);
+                        if (_logger.IsTraceEnabled())
+                        {
+                            _logger.Trace($"Requeue job '{JobId}' from queue '{Queue}'");
+                        }
+                    });
                 }
-            });
+                _removedFromQueue = true;
             }
-            _removedFromQueue = true;
         }
 
         public void Requeue()
         {
-            var realm = _dbContext.GetRealm();
-            var queuedJob = realm.Find<JobQueueDto>(_id);
-            if (queuedJob != null)
+            lock (_syncRoot)
             {
-                realm.Write(() => 
+                if (!FetchedAt.HasValue) return;
+                var realm = _dbContext.GetRealm();
+                var queuedJob = realm.Find<JobQueueDto>(_id);
+                if (queuedJob != null)
                 {
-                var notification = NotificationDto.JobEnqueued(Queue);
-                queuedJob.FetchedAt = null;
-                realm.Add<NotificationDto>(notification);
-                if (_logger.IsTraceEnabled())
-                {
-                    _logger.Trace($"Requeue job '{JobId}' from queue '{Queue}'");
+                    realm.Write(() => 
+                    {
+                        var notification = NotificationDto.JobEnqueued(Queue);
+                        queuedJob.FetchedAt = null;
+                        realm.Add<NotificationDto>(notification);
+                        if (_logger.IsTraceEnabled())
+                        {
+                            _logger.Trace($"Requeue job '{JobId}' from queue '{Queue}'");
+                    }
+                });
                 }
-            });
+                FetchedAt = null;
+                _requeued = true;
+                _requeued = true;
             }
-            _requeued = true;
         }
 
         public void Dispose()
         {
             if (_disposed) return;
-
-            if (!_removedFromQueue && !_requeued)
-            {
-                Requeue();
-            }
             _disposed = true;
+
+            _timer?.Dispose();
+
+            lock (_syncRoot)
+            {
+                if (!_removedFromQueue && !_requeued)
+                {
+                    Requeue();
+                }
+            }
         }
     }
 }
