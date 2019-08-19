@@ -13,12 +13,12 @@ namespace Hangfire.Realm
     {
         private static readonly ILog Logger = LogProvider.For<RealmJobQueue>();
         private readonly IRealmDbContext _dbContext;
-        private readonly DateTime _invisibilityTimeout;
-        private readonly RealmJobStorageOptions _options;
+        //private readonly DateTime _invisibilityTimeout;
+        //private readonly RealmJobStorageOptions _options;
 
-        public RealmJobQueue([NotNull] RealmJobStorage storage, RealmJobStorageOptions options)
+        public RealmJobQueue([NotNull] RealmJobStorage storage)
         {
-            _options = options ?? throw new ArgumentNullException(nameof(options));
+            //_options = options ?? throw new ArgumentNullException(nameof(options));
             if (storage == null) throw new ArgumentNullException(nameof(storage));
             _dbContext = storage.GetDbContext();
             
@@ -55,10 +55,8 @@ namespace Hangfire.Realm
 
         public void Enqueue(string queue, string jobId)
         {
-            using (var realm = _dbContext.GetRealm())
-            {
-                realm.Add(new JobQueueDto { Queue = queue, JobId = jobId });
-            };
+            var realm = _dbContext.GetRealm();
+            realm.Add(new JobQueueDto { Queue = queue, JobId = jobId });
         }
 
         private RealmFetchedJob TryAllQueues(string[] queues, CancellationToken cancellationToken)
@@ -78,33 +76,29 @@ namespace Hangfire.Realm
 
         private RealmFetchedJob TryGetEnqueuedJob(string queue, CancellationToken cancellationToken)
         {
-            //TODO cancellation
+            cancellationToken.ThrowIfCancellationRequested();
+            RealmFetchedJob fetchedJob = null;
             var realm = _dbContext.GetRealm();
-            var enqueuedJobs = realm.All<JobQueueDto>();
-            JobQueueDto fetchedJob = enqueuedJobs
-            .Where(_ => _.Queue == queue)
-            .OrderBy(_ => _.Created)
-            //.Where(_ => _.FetchedAt < _invisibilityTimeout)
-            .FirstOrDefault();
-            if (fetchedJob != null)
+            realm.Write(() =>
             {
-                realm.Write(() =>
+               var enqueuedJobs = realm.All<JobQueueDto>();
+               var job = enqueuedJobs
+                .Where(_ => _.Queue == queue)
+                .OrderBy(_ => _.Created)
+                //.Where(_ => _.FetchedAt < _invisibilityTimeout)
+                .FirstOrDefault();
+                if (job != null)
                 {
-                    fetchedJob.FetchedAt = DateTime.UtcNow;
-                });
-                if (Logger.IsTraceEnabled())
-                {
-                    Logger.Trace($"Fetched job {fetchedJob.JobId} from '{queue}' Thread[{Thread.CurrentThread.ManagedThreadId}]");
+                    job.FetchedAt = DateTimeOffset.UtcNow;
+                    fetchedJob = new RealmFetchedJob(_dbContext, job.Id, job.JobId, job.Queue);
+                    if (Logger.IsTraceEnabled())
+                    {
+                        Logger.Trace($"Fetched job {job.JobId} from '{queue}' Thread[{Thread.CurrentThread.ManagedThreadId}]");
+                    }
                 }
-                return new RealmFetchedJob(_dbContext, fetchedJob.Id, fetchedJob.JobId, fetchedJob.Queue);
-            }
-            return null;
-
-            
-
-            
-
-            
+                
+            });
+            return fetchedJob;
 
         }
     }

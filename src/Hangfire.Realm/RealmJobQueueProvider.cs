@@ -9,11 +9,10 @@ namespace Hangfire.Realm
         private readonly RealmJobQueue _jobQueue;
         private readonly IMonitoringApi _monitoringApi;
 
-        public RealmJobQueueProvider(RealmJobStorage storage, RealmJobStorageOptions options)
+        public RealmJobQueueProvider(RealmJobStorage storage)
         {
             if (storage == null) throw new ArgumentNullException(nameof(storage));
-            if (options == null) throw new ArgumentNullException(nameof(options));
-            _jobQueue = new RealmJobQueue(storage, options);
+            _jobQueue = new RealmJobQueue(storage);
             _monitoringApi = storage.GetMonitoringApi();
             
         }
