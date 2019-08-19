@@ -13,12 +13,10 @@ namespace Hangfire.Realm
 	internal class RealmMonitoringApi : IMonitoringApi
 	{
 		private readonly IRealmDbContext _realmDbContext;
-        private readonly RealmJobStorage _storage;
 
-        public RealmMonitoringApi(RealmJobStorage storage, IRealmDbContext realmDbContext)
+        public RealmMonitoringApi(RealmJobStorage storage)
 		{
-			_realmDbContext = realmDbContext;
-            _storage = storage;
+			_realmDbContext = storage.GetDbContext();
         }
 
         public IList<QueueWithTopEnqueuedJobsDto> Queues()
@@ -51,24 +49,24 @@ namespace Hangfire.Realm
 
 		public IList<Storage.Monitoring.ServerDto> Servers()
 		{
-            using (var realm = _realmDbContext.GetRealm())
-            {
-                var servers = realm
-                .All<Models.ServerDto>()
-                .ToList()
-                .Select(s =>
-                    new Storage.Monitoring.ServerDto
-                    {
-                        Name = s.Id,
-                        Heartbeat = s.LastHeartbeat?.DateTime,
-                        Queues = s.Queues,
-                        StartedAt = s.StartedAt?.DateTime ?? default,
-                        WorkersCount = s.WorkerCount
-                    })
-                .ToList();
+            var realm = _realmDbContext.GetRealm();
+            
+            var servers = realm
+            .All<Models.ServerDto>()
+            .ToList()
+            .Select(s =>
+                new Storage.Monitoring.ServerDto
+                {
+                    Name = s.Id,
+                    Heartbeat = s.LastHeartbeat?.DateTime,
+                    Queues = s.Queues,
+                    StartedAt = s.StartedAt?.DateTime ?? default,
+                    WorkersCount = s.WorkerCount
+                })
+            .ToList();
 
-                return servers;
-            }
+            return servers;
+            
 		}
 
 		public JobDetailsDto JobDetails(string jobId)

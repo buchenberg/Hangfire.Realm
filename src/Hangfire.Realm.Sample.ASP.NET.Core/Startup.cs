@@ -31,16 +31,24 @@ namespace Hangfire.Realm.Sample.ASP.NET.Core
         {
             RealmJobStorageOptions storageOptions = new RealmJobStorageOptions
             {
-                RealmConfiguration = new RealmConfiguration(Path.Combine(Directory.GetCurrentDirectory(), "sample.realm"))
+                RealmConfiguration = new RealmConfiguration(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Hangfire.Realm.Sample.NetCore.realm"))
             };
-            
+
             services.AddHangfire(config =>
             {
                 config
                 .UseRealmJobStorage(storageOptions)
                 .UseLogProvider(new ColouredConsoleLogProvider());
             });
-            services.AddHangfireServer();
+            services.AddHangfireServer(options => 
+            {
+                options.WorkerCount = 1;
+                options.Queues = new[] { "critical", "default" };
+                options.ServerTimeout = TimeSpan.FromMinutes(10);
+                options.HeartbeatInterval = TimeSpan.FromSeconds(30);
+                options.ServerCheckInterval = TimeSpan.FromSeconds(10);
+                options.SchedulePollingInterval = TimeSpan.FromSeconds(10);
+            });
 
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
         }

@@ -15,12 +15,14 @@ namespace Hangfire.Realm.Sample.NetCore
         {
             RealmJobStorageOptions storageOptions = new RealmJobStorageOptions
             {
-                RealmConfiguration = new RealmConfiguration(Path.Combine(Directory.GetCurrentDirectory(), "sample.realm"))
+                RealmConfiguration = new RealmConfiguration(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Hangfire.Realm.Sample.NetCore.realm")),
+                QueuePollInterval = TimeSpan.FromSeconds(1),
+                SlidingInvisibilityTimeout = TimeSpan.FromSeconds(10)
             };
             
             BackgroundJobServerOptions serverOptions = new BackgroundJobServerOptions()
             {
-                WorkerCount = 1,
+                WorkerCount = 10,
                 Queues = new[] { "critical", "default" },
                 ServerTimeout = TimeSpan.FromMinutes(10),
                 HeartbeatInterval = TimeSpan.FromSeconds(30),
@@ -32,7 +34,7 @@ namespace Hangfire.Realm.Sample.NetCore
             };
 
             GlobalConfiguration.Configuration
-            .UseLogProvider(new ColouredConsoleLogProvider(Logging.LogLevel.Debug))
+            .UseLogProvider(new ColouredConsoleLogProvider(Logging.LogLevel.Trace))
             .UseRealmJobStorage(storageOptions);
 
             using (new BackgroundJobServer(serverOptions))
@@ -40,14 +42,16 @@ namespace Hangfire.Realm.Sample.NetCore
                 for (var i = 0; i < JobCount; i++)
                 {
                     var jobNumber = i + 1;
-                    var jobId = BackgroundJob.Enqueue(() => 
+                    var jobId = BackgroundJob.Enqueue(() =>
                     Console.WriteLine($"Fire-and-forget job {jobNumber}"));
                     //Console.WriteLine($"Job {jobNumber} was given Id {jobId} and placed in queue");
                 }
 
                 BackgroundJob.Schedule(() =>
                 Console.WriteLine("Scheduled job"),
-                TimeSpan.FromSeconds(30));
+                TimeSpan.FromSeconds(60));
+
+                RecurringJob.AddOrUpdate(Guid.NewGuid().ToString(), () => Console.Write("Recurring job"), Cron.Minutely);
 
                 //Console.WriteLine($"{JobCount} job(s) has been enqueued. They will be executed shortly!");
                 //Console.WriteLine();

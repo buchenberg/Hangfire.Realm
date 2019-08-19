@@ -8,8 +8,8 @@ namespace Hangfire.Realm.Models
         [PrimaryKey]
         public string Key { get; set; }
 
-        public DateTimeOffset Created { get; set; }
-        
+        public DateTimeOffset Created { get; set; } = DateTimeOffset.Now;
+
         public RealmInteger<long> Value { get; set; }
         
         public DateTimeOffset? ExpireAt { get; set; }

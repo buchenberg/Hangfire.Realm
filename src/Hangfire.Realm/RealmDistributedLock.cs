@@ -129,7 +129,8 @@ namespace Hangfire.Realm
                     try
                     {
 
-                        _realmDbContext.Write(r =>
+                        var realm = _realmDbContext.GetRealm();
+                        realm.Write(() =>
                         {
                             _lockDto.ExpireAt = DateTimeOffset.UtcNow.Add(distributedLockLifetime);
                         });
@@ -165,8 +166,8 @@ namespace Hangfire.Realm
                     _heartbeatTimer.Dispose();
                     _heartbeatTimer = null;
                 }
-                
-                _realmDbContext.Write(r => { _lockDto.ExpireAt = null; });
+                var realm = _realmDbContext.GetRealm();
+                realm.Write(() => { _lockDto.ExpireAt = null; });
 
                 if (Logger.IsTraceEnabled())
                 {

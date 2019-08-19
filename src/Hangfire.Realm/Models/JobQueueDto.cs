@@ -5,10 +5,11 @@ namespace Hangfire.Realm.Models
 {
 	internal class JobQueueDto : RealmObject
     {
-		[PrimaryKey]
-	    public string Id { get; set; }
+        [PrimaryKey]
+        public string Id { get; set; } = Guid.NewGuid().ToString();
 
-	    public DateTimeOffset Created { get; set; } = DateTimeOffset.Now;
+
+        public DateTimeOffset Created { get; set; } = DateTimeOffset.Now;
 
 	    public string JobId { get; set; }
 

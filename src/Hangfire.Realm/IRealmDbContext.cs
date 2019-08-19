@@ -6,8 +6,6 @@ namespace Hangfire.Realm
     public interface IRealmDbContext
     {
         Realms.Realm GetRealm();
-
-        void Write(Action<Realms.Realm> writeAction);
     }
     
     public class RealmDbContext : IRealmDbContext
@@ -23,12 +21,5 @@ namespace Hangfire.Realm
             return Realms.Realm.GetInstance(_realmConfiguration);
         }
 
-        public void Write(Action<Realms.Realm> writeAction)
-        {
-            using (var realm = GetRealm())
-            {
-                realm.Write(() => writeAction?.Invoke(realm));
-            }
-        }
     }
 }

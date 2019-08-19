@@ -35,7 +35,7 @@ namespace Hangfire.Realm.Tests
 		    _realm = _realmDbContext.GetRealm();
 		    
 		    _realm.Write(() => _realm.RemoveAll());
-		    _monitoringApi = new RealmMonitoringApi(storage, _realmDbContext);
+		    _monitoringApi = new RealmMonitoringApi(storage);
 	    }
 
 	    [TearDown]

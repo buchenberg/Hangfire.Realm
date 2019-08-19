@@ -17,7 +17,6 @@ namespace Hangfire.Realm.Models
         {
             return new NotificationDto
             {
-                Id = Guid.NewGuid().ToString(),
                 Type = NotificationType.JobEnqueued.ToString(),
                 Value = queue
             };
@@ -27,14 +26,13 @@ namespace Hangfire.Realm.Models
         {
             return new NotificationDto
             {
-                Id = Guid.NewGuid().ToString(),
                 Type = NotificationType.LockReleased.ToString(),
                 Value = resource
             };
         }
 
         [PrimaryKey]
-        public string Id { get; set; }
+        public string Id { get; set; } = Guid.NewGuid().ToString();
 
         public string Type { get; set; }
 
