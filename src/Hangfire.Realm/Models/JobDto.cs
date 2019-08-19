@@ -6,12 +6,13 @@ namespace Hangfire.Realm.Models
 {
 	internal class JobDto : RealmObject, IExpireAt
     {
-		[PrimaryKey]
-	    public string Id { get; set; }
+        [PrimaryKey]
+        public string Id { get; set; } = Guid.NewGuid().ToString();
 
-	    public DateTimeOffset Created { get; set; }
 
-	    public string StateName { get; set; }
+        public DateTimeOffset Created { get; set; } = DateTimeOffset.Now;
+
+        public string StateName { get; set; }
 
 	    public string InvocationData { get; set; }
 
