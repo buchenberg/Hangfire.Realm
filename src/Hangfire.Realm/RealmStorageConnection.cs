@@ -262,8 +262,14 @@ namespace Hangfire.Realm
         [NotNull]
         public override HashSet<string> GetAllItemsFromSet(string key)
 	    {
-		    throw new NotImplementedException();
-	    }
+            if (key == null) throw new ArgumentNullException(nameof(key));
+            var realm = _realmDbContext.GetRealm();
+            var result = realm.All<SetDto>()
+                .Where(_ => _.Key == key)
+                .ToList()
+                .Select(_ => _.Value);
+            return new HashSet<string>(result);
+        }
         public override long GetSetCount(string key)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));

@@ -15,7 +15,7 @@ namespace Hangfire.Realm.Sample.NetCore
         {
             RealmJobStorageOptions storageOptions = new RealmJobStorageOptions
             {
-                RealmConfiguration = new RealmConfiguration(Path.Combine(Directory.GetCurrentDirectory(), "sample.realm"))
+                RealmConfiguration = new RealmConfiguration(Path.Combine(@"C:\", "Hangfire.Realm.Sample.NetCore.realm"))
             };
             
             BackgroundJobServerOptions serverOptions = new BackgroundJobServerOptions()

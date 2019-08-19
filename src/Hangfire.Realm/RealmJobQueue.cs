@@ -12,10 +12,6 @@ namespace Hangfire.Realm
     public class RealmJobQueue
     {
         private static readonly ILog Logger = LogProvider.For<RealmJobQueue>();
-
-        //private readonly RealmJobStorageOptions _storageOptions;
-        //private readonly IJobQueueSemaphore _semaphore;
-
         private readonly IRealmDbContext _dbContext;
         private readonly DateTime _invisibilityTimeout;
         private readonly RealmJobStorageOptions _options;
@@ -61,7 +57,7 @@ namespace Hangfire.Realm
         {
             using (var realm = _dbContext.GetRealm())
             {
-                realm.Add(new JobQueueDto { Id = Guid.NewGuid().ToString(), Created = DateTimeOffset.UtcNow, Queue = queue, JobId = jobId });
+                realm.Add(new JobQueueDto { Queue = queue, JobId = jobId });
             };
         }
 
@@ -83,29 +79,28 @@ namespace Hangfire.Realm
         private RealmFetchedJob TryGetEnqueuedJob(string queue, CancellationToken cancellationToken)
         {
             //TODO cancellation
-            using (var realm = _dbContext.GetRealm())
+            var realm = _dbContext.GetRealm();
+            var enqueuedJobs = realm.All<JobQueueDto>();
+            JobQueueDto fetchedJob = enqueuedJobs
+            .Where(_ => _.Queue == queue)
+            .OrderBy(_ => _.Created)
+            //.Where(_ => _.FetchedAt < _invisibilityTimeout)
+            .FirstOrDefault();
+            if (fetchedJob != null)
             {
-                var enqueuedJobs = realm.All<JobQueueDto>();
-                JobQueueDto fetchedJob = enqueuedJobs
-                .Where(_ => _.Queue == queue)
-                .OrderBy(_ => _.Created)
-                //.Where(_ => _.FetchedAt < _invisibilityTimeout)
-                .FirstOrDefault();
-                if (fetchedJob != null)
+                realm.Write(() =>
                 {
-                    realm.Write(() =>
-                    {
-                        fetchedJob.FetchedAt = DateTime.UtcNow;
-                    });
-                    if (Logger.IsTraceEnabled())
-                    {
-                        Logger.Trace($"Fetched job {fetchedJob.JobId} from '{queue}' Thread[{Thread.CurrentThread.ManagedThreadId}]");
-                    }
-                    return new RealmFetchedJob(_dbContext, fetchedJob.Id, fetchedJob.JobId, fetchedJob.Queue);
+                    fetchedJob.FetchedAt = DateTime.UtcNow;
+                });
+                if (Logger.IsTraceEnabled())
+                {
+                    Logger.Trace($"Fetched job {fetchedJob.JobId} from '{queue}' Thread[{Thread.CurrentThread.ManagedThreadId}]");
                 }
-                return null;
-
+                return new RealmFetchedJob(_dbContext, fetchedJob.Id, fetchedJob.JobId, fetchedJob.Queue);
             }
+            return null;
+
+            
 
             
 
