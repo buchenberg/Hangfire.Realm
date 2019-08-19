@@ -85,7 +85,7 @@ namespace Hangfire.Realm
                var job = enqueuedJobs
                 .Where(_ => _.Queue == queue)
                 .OrderBy(_ => _.Created)
-                //.Where(_ => _.FetchedAt < _invisibilityTimeout)
+                .Where(_ => _.FetchedAt == null)
                 .FirstOrDefault();
                 if (job != null)
                 {

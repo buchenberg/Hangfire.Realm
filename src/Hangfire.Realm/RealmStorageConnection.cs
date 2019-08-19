@@ -32,7 +32,7 @@ namespace Hangfire.Realm
 
 	    public override IDisposable AcquireDistributedLock(string resource, TimeSpan timeout)
 	    {
-		    return new RealmDistributedLock(resource, timeout, _realmDbContext, _storageOptions);
+		   return new RealmDistributedLock(resource, timeout, _realmDbContext, _storageOptions);
 	    }
 
 	    public override string CreateExpiredJob(Job job, IDictionary<string, string> parameters, DateTime createdAt, TimeSpan expireIn)
