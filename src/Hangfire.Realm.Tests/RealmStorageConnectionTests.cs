@@ -18,7 +18,7 @@ namespace Hangfire.Realm.Tests
 
         private IRealmDbContext _realmDbContext;
         private RealmStorageConnection _connection;
-        private Realms.Realm _realm;
+        //private Realms.Realm realm;
 
         [SetUp]
         public void Init()
@@ -28,8 +28,8 @@ namespace Hangfire.Realm.Tests
             {
                 RealmConfiguration = new RealmConfiguration()
             });
-            _realm = _realmDbContext.GetRealm();
-            _realm.Write(() => _realm.RemoveAll());
+            var realm = _realmDbContext.GetRealm();
+            realm.Write(() => realm.RemoveAll());
         }
 
         [TearDown]
@@ -59,12 +59,13 @@ namespace Hangfire.Realm.Tests
                 Queues = new[] { "default" },
                 WorkerCount = 1000
             };
+            var realm = _realmDbContext.GetRealm();
 
             // ACT - Create
             _connection.AnnounceServer("server", context1);
 
             // ASSERT
-            var server = _realm.Find<ServerDto>("server");
+            var server = realm.Find<ServerDto>("server");
             Assert.AreEqual("server", server.Id);
             Assert.AreEqual(context1.WorkerCount, server.WorkerCount);
             Assert.AreEqual(context1.Queues, server.Queues);
@@ -75,11 +76,99 @@ namespace Hangfire.Realm.Tests
             _connection.AnnounceServer("server", context2);
 
             // ASSERT
-            var sameServer = _realm.Find<ServerDto>("server");
+            var sameServer = realm.Find<ServerDto>("server");
             Assert.AreEqual("server", sameServer.Id);
             Assert.AreEqual(context2.WorkerCount, sameServer.WorkerCount);
         }
 
+        [Test]
+        public void GetAllEntriesFromHash_ReturnsAllKeysAndTheirValues()
+        {
+            var hash1 = new HashDto { Key = "some-hash" };
+            hash1.Fields.Add(new FieldDto { Key = "Key1", Value = "Value1" });
+
+            var hash2 = new HashDto { Key = "some-hash" };
+            hash2.Fields.Add(new FieldDto { Key = "Key2", Value = "Value2" });
+
+            var hash3 = new HashDto { Key = "another-hash" };
+            hash3.Fields.Add(new FieldDto { Key = "Key3", Value = "Value3" });
+            var realm = _realmDbContext.GetRealm();
+
+            realm.Write(() =>
+            {
+                realm.Add(hash1);
+                realm.Add(hash2);
+                realm.Add(hash3);
+            });
+
+
+            // Act
+            var result = _connection.GetAllEntriesFromHash("some-hash");
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.AreEqual(2, result.Count);
+            Assert.AreEqual("Value1", result["Key1"]);
+            Assert.AreEqual("Value2", result["Key2"]);
+            
+        }
+        [Test]
+        public void SetRangeInHash_MergesAllRecords()
+        {
+
+            var fieldDictionary = new Dictionary<string, string>
+                {
+                    { "Key1", "Value1" },
+                    { "Key2", "Value2" }
+                };
+            var realm = _realmDbContext.GetRealm();
+            
+            _connection.SetRangeInHash("some-hash", fieldDictionary);
+
+            var fieldLists = realm.All<HashDto>()
+                .Where(_ => _.Key == "some-hash")
+                .ToList()
+                .Select(_ => _.Fields);
+            var result = new Dictionary<string, string>();
+            foreach (var fieldList in fieldLists)
+            {
+                foreach (var field in fieldList)
+                {
+                    result.Add(field.Key, field.Value);
+                }
+
+            }
+
+            Assert.AreEqual("Value1", result["Key1"]);
+            Assert.AreEqual("Value2", result["Key2"]);
+
+        }
+        [Test]
+        public void GetValueFromHash_ReturnsValue_OfAGivenField()
+        {
+            var realm = _realmDbContext.GetRealm();
+            var hash1 = new HashDto { Key = "hash-1" };
+            hash1.Fields.Add(new FieldDto { Key = "field-1", Value = "1" });
+
+            var hash2 = new HashDto { Key = "hash-1" };
+            hash2.Fields.Add(new FieldDto { Key = "field-2", Value = "2" });
+
+            var hash3 = new HashDto { Key = "hash-2" };
+            hash3.Fields.Add(new FieldDto { Key = "field-1", Value = "3" });
+
+            realm.Write(() =>
+            {
+                realm.Add(hash1);
+                realm.Add(hash2);
+                realm.Add(hash3);
+            });
+
+            // Act
+            var result = _connection.GetValueFromHash("hash-1", "field-1");
+
+            // Assert
+            Assert.AreEqual("1", result);
+        }
         [Test]
         public void CreateExpiredJob_CreatesAJobInTheStorage_AndSetsItsParameters()
         {
@@ -89,11 +178,12 @@ namespace Hangfire.Realm.Tests
                 new Dictionary<string, string> { { "Key1", "Value1" }, { "Key2", "Value2" } },
                 createdAt,
                 TimeSpan.FromDays(1));
+            var realm = _realmDbContext.GetRealm();
 
             Assert.NotNull(jobId);
             Assert.IsNotEmpty(jobId);
 
-            var databaseJob = _realm.Find<JobDto>(jobId);
+            var databaseJob = realm.Find<JobDto>(jobId);
             Assert.AreEqual(jobId, databaseJob.Id.ToString());
             Assert.AreEqual(createdAt, databaseJob.Created.DateTime);
             Assert.Null(databaseJob.StateName);
@@ -109,7 +199,7 @@ namespace Hangfire.Realm.Tests
             Assert.True(createdAt.AddDays(1).AddMinutes(-1) < databaseJob.ExpireAt);
             Assert.True(databaseJob.ExpireAt < createdAt.AddDays(1).AddMinutes(1));
 
-            var parameters = _realm.Find<JobDto>(jobId).Parameters;
+            var parameters = realm.Find<JobDto>(jobId).Parameters;
             Dictionary<string, string> paramDictionary = parameters.ToDictionary(_ => _.Key, _ => _.Value);
 
             Assert.NotNull(parameters);
@@ -138,7 +228,8 @@ namespace Hangfire.Realm.Tests
                 StateName = "",
                 Created = DateTime.UtcNow
             };
-            
+            var realm = _realmDbContext.GetRealm();
+
 
             var stateUpdate = new StateDto
             {
@@ -147,13 +238,13 @@ namespace Hangfire.Realm.Tests
                 Created = DateTime.UtcNow
             };
 
-            _realm.Write(() =>
+            realm.Write(() =>
             {
                 jobDto.StateHistory.Add(state);
-                _realm.Add(jobDto);
+                realm.Add(jobDto);
                 stateUpdate.Data.Add(data);
                 jobDto.StateHistory.Add(stateUpdate);
-                _realm.Add(jobDto, update: true);
+                realm.Add(jobDto, update: true);
             });
 
             
@@ -178,7 +269,8 @@ namespace Hangfire.Realm.Tests
                 StateName = SucceededState.StateName,
                 Created = DateTime.UtcNow
             };
-            _realm.Write(() => { _realm.Add(jobDto); });
+            var realm = _realmDbContext.GetRealm();
+            realm.Write(() => { realm.Add(jobDto); });
 
             var result = _connection.GetJobData(jobDto.Id.ToString());
 
@@ -201,8 +293,8 @@ namespace Hangfire.Realm.Tests
         [Test]
         public void Heartbeat_UpdatesLastHeartbeat_OfTheServerWithGivenId()
         {
-
-            _realm.Write(() =>
+            var realm = _realmDbContext.GetRealm();
+            realm.Write(() =>
             {
                 var server1 = new ServerDto
                 {
@@ -216,13 +308,13 @@ namespace Hangfire.Realm.Tests
                     LastHeartbeat = new DateTime(2012, 12, 12, 12, 12, 12, DateTimeKind.Utc)
                 };
 
-                _realm.Add(server1);
-                _realm.Add(server2);
+                realm.Add(server1);
+                realm.Add(server2);
             });
 
             _connection.Heartbeat("server1");
 
-            var servers = _realm.All<ServerDto>().ToList()
+            var servers = realm.All<ServerDto>().ToList()
                 .ToDictionary(x => x.Id, x => x.LastHeartbeat);
 
             Assert.True(servers.ContainsKey("server1"));
@@ -234,27 +326,28 @@ namespace Hangfire.Realm.Tests
         [Test]
         public void RemoveServer_RemovesAServerRecord()
         {
-            _realm.Write(() =>
+            var realm = _realmDbContext.GetRealm();
+            realm.Write(() =>
             {
                 var server1 = new ServerDto
                 {
                     Id = "server1",
                     LastHeartbeat = DateTime.UtcNow
                 };
-                _realm.Add(server1);
+                realm.Add(server1);
 
                 var server2 = new ServerDto
                 {
                     Id = "server2",
                     LastHeartbeat = DateTime.UtcNow
                 };
-                _realm.Add(server2);
+                realm.Add(server2);
             });
 
 
             _connection.RemoveServer("server1");
 
-            var servers = _realm.All<ServerDto>();
+            var servers = realm.All<ServerDto>();
             Assert.IsTrue(servers.Any(s => s.Id == "server2"));
             Assert.IsFalse(servers.Any(s => s.Id == "server1"));
 
@@ -269,19 +362,20 @@ namespace Hangfire.Realm.Tests
         [Test]
         public void RemoveTimedOutServers_RemovesServers()
         {
-            _realm.Write(() =>
+            var realm = _realmDbContext.GetRealm();
+            realm.Write(() =>
             {
-                _realm.Add(new ServerDto
+                realm.Add(new ServerDto
                 {
                     Id = "server1",
                     LastHeartbeat = DateTime.UtcNow.AddDays(-1)
                 });
-                _realm.Add(new ServerDto
+                realm.Add(new ServerDto
                 {
                     Id = "server2",
                     LastHeartbeat = DateTime.UtcNow.AddHours(-12)
                 });
-                _realm.Add(new ServerDto
+                realm.Add(new ServerDto
                 {
                     Id = "server3",
                     LastHeartbeat = DateTime.UtcNow.AddHours(-17)
@@ -291,7 +385,7 @@ namespace Hangfire.Realm.Tests
 
             var deletedServerCount = _connection.RemoveTimedOutServers(TimeSpan.FromHours(15));
 
-            var liveServer = _realm.All<ServerDto>().FirstOrDefault();
+            var liveServer = realm.All<ServerDto>().FirstOrDefault();
             Assert.AreEqual("server2", liveServer.Id);
             Assert.AreEqual(2, deletedServerCount);
         }
@@ -299,27 +393,28 @@ namespace Hangfire.Realm.Tests
         [Test]
         public void GetFirstByLowestScoreFromSet_ReturnsTheValueWithTheLowestScore()
         {
-            _realm.Write(() =>
+            var realm = _realmDbContext.GetRealm();
+            realm.Write(() =>
             {
-                _realm.Add(new SetDto
+                realm.Add(new SetDto
                 {
                     Key = SetDto.CreateCompoundKey("key", "1.0"),
                     Value = "1.0",
                     Score = 1.0
                 });
-                _realm.Add(new SetDto
+                realm.Add(new SetDto
                 {
                     Key = SetDto.CreateCompoundKey("key", "-5.0"),
                     Value = "-5.0",
                     Score = -5.0
                 });
-                _realm.Add(new SetDto
+                realm.Add(new SetDto
                 {
                     Key = SetDto.CreateCompoundKey("key", "-1.0"),
                     Value = "-1.0",
                     Score = -1.0
                 });
-                _realm.Add(new SetDto
+                realm.Add(new SetDto
                 {
                     Key = SetDto.CreateCompoundKey("key", "-2.0"),
                     Value = "-2.0",

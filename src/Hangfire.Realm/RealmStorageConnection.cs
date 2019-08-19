@@ -246,20 +246,17 @@ namespace Hangfire.Realm
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
             List<string> result = new List<string>();
-            int counter = 0;
+
             var realm = _realmDbContext.GetRealm();
             var sets = realm.All<SetDto>()
                     .Where(_ => _.Key == key)
-                    .OrderByDescending(_ => _.Created).ToArray();
-            int count = sets.Count();
-            for (int i = 1; i <= count; i++)
-            {
-                if ((counter >= startingFrom) && (counter <= endingAt))
-                {
-                    result.Add(sets[i].Value);
-                }
-            }
+                    .OrderByDescending(_ => _.Created)
+                    .ToArray();
 
+            for (var i = startingFrom; i < startingFrom + endingAt && i < sets.Count(); i++)
+            {
+                result.Add(sets[i].Value);
+            }
             return result;
         }
         [NotNull]
@@ -285,17 +282,8 @@ namespace Hangfire.Realm
             {
                 throw new ArgumentException("The `toScore` value must be higher or equal to the `fromScore` value.");
             }
-            var realm = _realmDbContext.GetRealm();
-            var set = realm.All<SetDto>()
-                .Where(_ => _.Key.StartsWith("key"))
-                .Where(_ => _.Score >= fromScore)
-                .Where(_ => _.Score <= toScore)
-                .OrderBy(_ => _.Score)
-                .FirstOrDefault();
 
-            var value = set?.Value;
-
-            return value;
+            return GetFirstByLowestScoreFromSet(key, fromScore, toScore, 1).FirstOrDefault();
 
         }
         public override List<string> GetFirstByLowestScoreFromSet(string key, double fromScore, double toScore, int count)
@@ -303,24 +291,67 @@ namespace Hangfire.Realm
             if (key == null) throw new ArgumentNullException(nameof(key));
             if (count <= 0) throw new ArgumentException("The value must be a positive number", nameof(count));
             if (toScore < fromScore) throw new ArgumentException("The `toScore` value must be higher or equal to the `fromScore` value.", nameof(toScore));
+            List<string> result = new List<string>();
+            var realm = _realmDbContext.GetRealm();
+            var sets = realm.All<SetDto>()
+                .Where(_ => _.Key.StartsWith("key"))
+                .Where(_ => _.Score >= fromScore)
+                .Where(_ => _.Score <= toScore)
+                .OrderBy(_ => _.Score).ToArray();
+            for (var i = 0; i < count && i < sets.Count(); i++)
+            {
+                result.Add(sets[i].Value);
+            }
+            return result;
 
-            throw new NotImplementedException();
         }
         // hash operations
         public override void SetRangeInHash(string key, IEnumerable<KeyValuePair<string, string>> keyValuePairs)
 	    {
-		    throw new NotImplementedException();
-	    }
+
+            if (key == null) throw new ArgumentNullException(nameof(key));
+            if (keyValuePairs == null) throw new ArgumentNullException(nameof(keyValuePairs));
+            var realm = _realmDbContext.GetRealm();
+            realm.Write(() =>
+            {
+                HashDto hash = new HashDto
+                {
+                    Key = key,
+                    Created = DateTimeOffset.UtcNow
+                };
+                foreach (var field in keyValuePairs)
+                {
+                    hash.Fields.Add(new FieldDto { Key = field.Key, Value = field.Value });
+                }
+                realm.Add(hash);
+            });
+        }
         [CanBeNull]
         public override Dictionary<string, string> GetAllEntriesFromHash(string key)
 	    {
-		    throw new NotImplementedException();
-	    }
+            if (key == null) throw new ArgumentNullException(nameof(key));
+            var realm = _realmDbContext.GetRealm();
+            var hashList = realm.All<HashDto>()
+                .Where(_ => _.Key == key)
+                .ToList();
+            var result = new Dictionary<string, string>();
+            //TODO: This is wonky
+            foreach (var hash in hashList)
+            {
+                foreach (var field in hash.Fields)
+                {
+                    result.Add(field.Key, field.Value);
+                }
+                
+            }
+            return result.Count != 0 ? result : null;
+
+        }
         public override TimeSpan GetSetTtl(string key)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-
             throw new NotImplementedException();
+
         }
 
         public override long GetCounter(string key)
@@ -336,17 +367,44 @@ namespace Hangfire.Realm
 
             throw new NotImplementedException();
         }
-
+        public override long GetHashCount(string key)
+        {
+            if (key == null) throw new ArgumentNullException(nameof(key));
+            var realm = _realmDbContext.GetRealm();
+            var result = realm.All<HashDto>()
+                .Where(_ => _.Key == key)
+                .Count();
+            return (long)result;
+        }
         public override string GetValueFromHash(string key, string name)
         {
-            throw new NotImplementedException();
+            if (key == null) throw new ArgumentNullException(nameof(key));
+            if (name == null) throw new ArgumentNullException(nameof(name));
+            string result = string.Empty;
+            var realm = _realmDbContext.GetRealm();
+            var hashList = realm.All<HashDto>()
+                .Where(_ => _.Key == key)
+                .ToList();
+            foreach (var hash in hashList)
+            {
+                foreach (var field in hash.Fields.Where(_ => _.Key == name))
+                {
+                    result += field.Value;
+                }
+            }
+            return result;
         }
+        
+        //List
 
         public override long GetListCount(string key)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-
-            throw new NotImplementedException();
+            var realm = _realmDbContext.GetRealm();
+            var result = realm.All<ListDto>()
+                .Where(_ => _.Key == key)
+                .Count();
+            return (long)result;
         }
 
         public override TimeSpan GetListTtl(string key)
