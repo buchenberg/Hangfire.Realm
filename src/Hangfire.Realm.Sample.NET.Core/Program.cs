@@ -15,7 +15,9 @@ namespace Hangfire.Realm.Sample.NetCore
         {
             RealmJobStorageOptions storageOptions = new RealmJobStorageOptions
             {
-                RealmConfiguration = new RealmConfiguration(Path.Combine(@"C:\", "Hangfire.Realm.Sample.NetCore.realm"))
+                RealmConfiguration = new RealmConfiguration(Path.Combine(@"C:\", "Hangfire.Realm.Sample.NetCore.realm")),
+                QueuePollInterval = TimeSpan.FromSeconds(1),
+                SlidingInvisibilityTimeout = TimeSpan.FromSeconds(10)
             };
             
             BackgroundJobServerOptions serverOptions = new BackgroundJobServerOptions()
@@ -40,7 +42,7 @@ namespace Hangfire.Realm.Sample.NetCore
                 //for (var i = 0; i < JobCount; i++)
                 //{
                 //    var jobNumber = i + 1;
-                //    var jobId = BackgroundJob.Enqueue(() => 
+                //    var jobId = BackgroundJob.Enqueue(() =>
                 //    Console.WriteLine($"Fire-and-forget job {jobNumber}"));
                 //    //Console.WriteLine($"Job {jobNumber} was given Id {jobId} and placed in queue");
                 //}

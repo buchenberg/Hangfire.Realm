@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Threading;
 using Hangfire.Annotations;
+using Hangfire.Common;
 using Hangfire.Logging;
 using Hangfire.Realm.Extensions;
 using Hangfire.Realm.Models;
@@ -11,15 +12,19 @@ namespace Hangfire.Realm
 {
     public class RealmJobQueue
     {
+        // This is an optimization that helps to overcome the polling delay, when
+        // both client and server reside in the same process. Everything is working
+        // without this event, but it helps to reduce the delays in processing.
+        internal static readonly AutoResetEvent NewItemInQueueEvent = new AutoResetEvent(false);
         private static readonly ILog Logger = LogProvider.For<RealmJobQueue>();
         private readonly IRealmDbContext _dbContext;
-        //private readonly DateTime _invisibilityTimeout;
-        //private readonly RealmJobStorageOptions _options;
+        private readonly RealmJobStorage _storage;
+        private readonly RealmJobStorageOptions _options;
 
-        public RealmJobQueue([NotNull] RealmJobStorage storage)
+        public RealmJobQueue([NotNull] RealmJobStorage storage, RealmJobStorageOptions options)
         {
-            //_options = options ?? throw new ArgumentNullException(nameof(options));
-            if (storage == null) throw new ArgumentNullException(nameof(storage));
+            _options = options ?? throw new ArgumentNullException(nameof(options));
+            _storage = storage ?? throw new ArgumentNullException(nameof(storage));
             _dbContext = storage.GetDbContext();
             
         }
@@ -61,15 +66,22 @@ namespace Hangfire.Realm
 
         private RealmFetchedJob TryAllQueues(string[] queues, CancellationToken cancellationToken)
         {
-            foreach (var queue in queues)
+            using (var cancellationEvent = cancellationToken.GetCancellationEvent())
             {
-                var fetchedJob = TryGetEnqueuedJob(queue, cancellationToken);
-                if (fetchedJob == null)
+                WaitHandle.WaitAny(new WaitHandle[] { cancellationEvent.WaitHandle, NewItemInQueueEvent }, _options.QueuePollInterval);
+                cancellationToken.ThrowIfCancellationRequested();
+                foreach (var queue in queues)
                 {
-                    continue;
+                    var fetchedJob = TryGetEnqueuedJob(queue, cancellationToken);
+                    if (fetchedJob == null)
+                    {
+                        continue;
+                    }
+                    
+                    return fetchedJob;
                 }
-                return fetchedJob;
             }
+            
 
             return null;
         }
@@ -77,6 +89,7 @@ namespace Hangfire.Realm
         private RealmFetchedJob TryGetEnqueuedJob(string queue, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            var timeout = DateTimeOffset.UtcNow.AddSeconds(_options.SlidingInvisibilityTimeout.Value.TotalSeconds);
             RealmFetchedJob fetchedJob = null;
             var realm = _dbContext.GetRealm();
             realm.Write(() =>
@@ -85,12 +98,13 @@ namespace Hangfire.Realm
                var job = enqueuedJobs
                 .Where(_ => _.Queue == queue)
                 .OrderBy(_ => _.Created)
-                .Where(_ => _.FetchedAt == null)
+                .Where(_ => _.FetchedAt == null || _.FetchedAt <= timeout)
                 .FirstOrDefault();
                 if (job != null)
                 {
-                    job.FetchedAt = DateTimeOffset.UtcNow;
-                    fetchedJob = new RealmFetchedJob(_dbContext, job.Id, job.JobId, job.Queue);
+                    var fetchedAt = DateTimeOffset.UtcNow;
+                    job.FetchedAt = fetchedAt;
+                    fetchedJob = new RealmFetchedJob(_storage, _dbContext, job.Id, job.JobId, job.Queue, fetchedAt);
                     if (Logger.IsTraceEnabled())
                     {
                         Logger.Trace($"Fetched job {job.JobId} from '{queue}' Thread[{Thread.CurrentThread.ManagedThreadId}]");
