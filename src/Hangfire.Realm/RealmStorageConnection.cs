@@ -383,8 +383,14 @@ namespace Hangfire.Realm
         public override TimeSpan GetHashTtl(string key)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
+            var realm = _realmDbContext.GetRealm();
+            var result = realm.All<HashDto>().Where(_ => _.Key == key)
+                .ToList()
+                .Select(_ => _.ExpireAt)
+                .Min();
+            if (!result.HasValue) return TimeSpan.FromSeconds(-1);
 
-            throw new NotImplementedException();
+            return result.Value - DateTime.UtcNow;
         }
         public override long GetHashCount(string key)
         {
