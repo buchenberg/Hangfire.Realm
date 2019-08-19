@@ -73,7 +73,8 @@ namespace Hangfire.Realm
             if (id == null) throw new ArgumentNullException(nameof(id));
             if (name == null) throw new ArgumentNullException(nameof(name));
             if (value == null) throw new ArgumentNullException(nameof(value));
-            _realmDbContext.Write(realm =>
+            var realm = _realmDbContext.GetRealm();
+            realm.Write(() =>
             {
                 var jobDto = realm.Find<JobDto>(id);
                 jobDto.Parameters.Add(new ParameterDto
@@ -176,8 +177,8 @@ namespace Hangfire.Realm
             {
                 throw new ArgumentNullException(nameof(context));
             }
-
-            _realmDbContext.Write(realm =>
+            var realm = _realmDbContext.GetRealm();
+            realm.Write(() =>
             {
                 var server = new ServerDto
                 {
@@ -197,8 +198,9 @@ namespace Hangfire.Realm
             {
                 throw new ArgumentNullException(nameof(serverId));
             }
-            _realmDbContext.Write(realm =>
-            {
+            var realm = _realmDbContext.GetRealm();
+            realm.Write(() =>
+            { 
                 var server = realm.Find<ServerDto>(serverId);
                 realm.Remove(server);
             });
@@ -210,7 +212,8 @@ namespace Hangfire.Realm
             {
                 throw new ArgumentNullException(nameof(serverId));
             }
-            _realmDbContext.Write(realm =>
+            var realm = _realmDbContext.GetRealm();
+            realm.Write(() =>
             {
                 var servers = realm.All<ServerDto>()
                 .Where(d => d.Id == serverId);
@@ -229,7 +232,8 @@ namespace Hangfire.Realm
             }
             DateTime cutoff = DateTime.UtcNow.Add(timeOut.Negate());
             int deletedServerCount = 0;
-            _realmDbContext.Write(realm =>
+            var realm = _realmDbContext.GetRealm();
+            realm.Write(() =>
             {
                 var servers = realm.All<ServerDto>()
                .Where(_ => _.LastHeartbeat < cutoff);

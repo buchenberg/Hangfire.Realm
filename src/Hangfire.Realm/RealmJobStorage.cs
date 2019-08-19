@@ -7,15 +7,15 @@ namespace Hangfire.Realm
 {
     public class RealmJobStorage : JobStorage
     {
-	    private readonly RealmJobStorageOptions _options;
-	    public const int SchemaVersion = 1;
+        private readonly RealmJobStorageOptions _options;
+        public ulong SchemaVersion { get; set; } = 0;
 	    private readonly IRealmDbContext _realmDbContext;
         internal TimeSpan? SlidingInvisibilityTimeout => _options.SlidingInvisibilityTimeout;
 
         public RealmJobStorage(RealmJobStorageOptions options)
 	    {
 		    _options = options;
-		    options.RealmConfiguration.SchemaVersion = SchemaVersion;
+            SchemaVersion = options.RealmConfiguration.SchemaVersion;
 			_realmDbContext = new RealmDbContext(options.RealmConfiguration);
             InitializeQueueProviders();
         }
