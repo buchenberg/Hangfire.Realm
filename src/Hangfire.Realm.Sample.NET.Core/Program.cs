@@ -47,7 +47,9 @@ namespace Hangfire.Realm.Sample.NetCore
 
                 BackgroundJob.Schedule(() =>
                 Console.WriteLine("Scheduled job"),
-                TimeSpan.FromSeconds(30));
+                TimeSpan.FromSeconds(1));
+
+                RecurringJob.AddOrUpdate(() => Console.Write("Recurring job"), Cron.Minutely);
 
                 //Console.WriteLine($"{JobCount} job(s) has been enqueued. They will be executed shortly!");
                 //Console.WriteLine();

@@ -245,19 +245,14 @@ namespace Hangfire.Realm
         public override List<string> GetRangeFromSet([NotNull] string key, int startingFrom, int endingAt)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-            List<string> result = new List<string>();
-
             var realm = _realmDbContext.GetRealm();
-            var sets = realm.All<SetDto>()
+            var results = realm.All<SetDto>()
                     .Where(_ => _.Key == key)
                     .OrderByDescending(_ => _.Created)
-                    .ToArray();
-
-            for (var i = startingFrom; i < startingFrom + endingAt && i < sets.Count(); i++)
-            {
-                result.Add(sets[i].Value);
-            }
-            return result;
+                    .ToList()
+                    .Select(_ => _.Value)
+                    .ToList();
+            return results;
         }
         [NotNull]
         public override HashSet<string> GetAllItemsFromSet(string key)
@@ -448,14 +443,27 @@ namespace Hangfire.Realm
         public override List<string> GetRangeFromList(string key, int startingFrom, int endingAt)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-
-            throw new NotImplementedException();
+            var realm = _realmDbContext.GetRealm();
+            var results = realm.All<ListDto>()
+                    .Where(_ => _.Key == key)
+                    .OrderByDescending(_ => _.Created)
+                    .ToList()
+                    .SelectMany(_ => _.Values)
+                    .ToList();
+            return results;
         }
 
         public override List<string> GetAllItemsFromList(string key)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-            throw new NotImplementedException();
+            var realm = _realmDbContext.GetRealm();
+            var results = realm.All<ListDto>()
+                    .Where(_ => _.Key == key)
+                    .OrderByDescending(_ => _.Created)
+                    .ToList()
+                    .SelectMany(_ => _.Values)
+                    .ToList();
+            return results;
         }
 
     }
