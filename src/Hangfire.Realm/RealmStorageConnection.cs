@@ -370,8 +370,14 @@ namespace Hangfire.Realm
         public override long GetCounter(string key)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-
-            throw new NotImplementedException();
+            var realm = _realmDbContext.GetRealm();
+            var result = realm.All<CounterDto>()
+                .Where(_ => _.Key == key)
+                .ToList()
+                .Select(_ => (long)_.Value)
+                .Sum();
+           
+            return result;
         }
 
         public override TimeSpan GetHashTtl(string key)
