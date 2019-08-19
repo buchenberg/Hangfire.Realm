@@ -21,7 +21,7 @@ namespace Hangfire.Realm
         }
 	    public override IMonitoringApi GetMonitoringApi()
 	    {
-     	    return new RealmMonitoringApi(this, _realmDbContext);
+     	    return new RealmMonitoringApi(this);
 	    }
 
 	    public override IStorageConnection GetConnection()
