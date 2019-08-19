@@ -356,7 +356,14 @@ namespace Hangfire.Realm
         public override TimeSpan GetSetTtl(string key)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-            throw new NotImplementedException();
+            var realm = _realmDbContext.GetRealm();
+            var result = realm.All<SetDto>().Where(_ => _.Key == key)
+                .ToList()
+                .Select(_ => _.ExpireAt)
+                .Min();
+            if (!result.HasValue) return TimeSpan.FromSeconds(-1);
+
+            return result.Value - DateTime.UtcNow;
 
         }
 
