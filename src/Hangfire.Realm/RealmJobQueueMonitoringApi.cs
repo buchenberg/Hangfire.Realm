@@ -34,11 +34,12 @@ namespace Hangfire.Realm
             {
                 if (_queuesCache.Count == 0 || _cacheUpdated.Elapsed > QueuesCacheTimeout)
                 {
-                    using (var realm = _context.GetRealm())
-                    {
-                        _queuesCache = realm.All<JobQueueDto>().Select(q => q.Queue).Distinct().ToList();
-                        _cacheUpdated = Stopwatch.StartNew();
-                    }                   
+                    var realm = _context.GetRealm();
+                    _queuesCache = realm.All<JobQueueDto>()
+                        .Select(q => q.Queue)
+                        .Distinct()
+                        .ToList();
+                    _cacheUpdated = Stopwatch.StartNew();            
                 }
 
                 return _queuesCache.ToList();
