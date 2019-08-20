@@ -74,7 +74,7 @@ namespace Hangfire.Realm.Extensions
 			    .All<JobQueueDto>()
 				.ToList()
 			    .Select(j => j.Queue)
-			    .ToArray();
+			    .ToList();
 	    }
 
 	    public static IList<string> GetFetchedJobIds(this Realms.Realm realm, string queue, int from, int perPage)
