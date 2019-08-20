@@ -296,19 +296,18 @@ namespace Hangfire.Realm
             if (key == null) throw new ArgumentNullException(nameof(key));
             if (count <= 0) throw new ArgumentException("The value must be a positive number", nameof(count));
             if (toScore < fromScore) throw new ArgumentException("The `toScore` value must be higher or equal to the `fromScore` value.", nameof(toScore));
-            List<string> result = new List<string>();
             var realm = _realmDbContext.GetRealm();
             var sets = realm.All<SetDto>()
-                .Where(_ => _.Key.StartsWith("key"))
-                .Where(_ => _.Score >= fromScore)
-                .Where(_ => _.Score <= toScore)
-                .OrderBy(_ => _.Score).ToArray();
-            for (var i = 0; i < count && i < sets.Count(); i++)
-            {
-                result.Add(sets[i].Value);
-            }
-            return result;
-
+                .Where(_ => _.Key == key);
+            return sets
+                .Where(_ => 
+                _.Score >= fromScore && _.Score <= toScore
+                )
+                .OrderBy(_ => _.Score)
+                .ToList()
+                .Take(count)
+                .Select(_ => _.Value)
+                .ToList();
         }
         // hash operations
         public override void SetRangeInHash(string key, IEnumerable<KeyValuePair<string, string>> keyValuePairs)

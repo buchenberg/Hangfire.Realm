@@ -40,7 +40,6 @@ namespace Hangfire.Realm
 
             var jobDto = new JobDto
             {
-                Id = Guid.NewGuid().ToString(),
                 InvocationData = SerializationHelper.Serialize<InvocationData>(invocationData),
                 Arguments = invocationData.Arguments,
                 Created = createdAt,
@@ -60,10 +59,8 @@ namespace Hangfire.Realm
         public override void PersistJob(string jobId)
         {
             var job = _realm.Find<JobDto>(jobId);
-            if (job != null)
-            {
-                job.ExpireAt = null;
-            }
+            if (job == null) return;
+            job.ExpireAt = null;
         }
 
         public override void SetJobState(string jobId, IState state)
@@ -101,7 +98,7 @@ namespace Hangfire.Realm
 
         public override void AddToQueue(string queue, string jobId)
         {
-            _realm.Add(new JobQueueDto {Id = Guid.NewGuid().ToString(), Created = DateTimeOffset.UtcNow, Queue = queue, JobId = jobId});
+            _realm.Add(new JobQueueDto {Queue = queue, JobId = jobId});
         }
 
         public override void IncrementCounter(string key)
@@ -111,12 +108,10 @@ namespace Hangfire.Realm
             {
                 counter = _realm.Add(new CounterDto
                 {
-                    Created = DateTimeOffset.UtcNow,
                     Key = key, 
                     Value = 0
                 });
             }
-
             counter.Value.Increment();
         }
 
@@ -127,13 +122,10 @@ namespace Hangfire.Realm
             {
                 counter = _realm.Add(new CounterDto
                 {
-                    Created = DateTimeOffset.UtcNow,
                     Key = key, 
                     Value = 0
                 });
             }
-
-                
             counter.ExpireAt = DateTimeOffset.UtcNow.Add(expireIn);   
             counter.Value.Increment();
         }
@@ -145,7 +137,6 @@ namespace Hangfire.Realm
             {
                 counter = _realm.Add(new CounterDto
                 {
-                    Created = DateTimeOffset.UtcNow,
                     Key = key, 
                     Value = 0
                 });
@@ -161,7 +152,6 @@ namespace Hangfire.Realm
             {
                 counter = _realm.Add(new CounterDto
                 {
-                    Created = DateTimeOffset.UtcNow,
                     Key = key,
                     Value = 0
                 });
@@ -178,15 +168,15 @@ namespace Hangfire.Realm
 
         public override void AddToSet(string key, string value, double score)
         {
-            var compoundKey = SetDto.CreateCompoundKey(key, value);
-            var set = _realm.Find<SetDto>(compoundKey);
+            var set = _realm.All<SetDto>()
+                .Where(_ => _.Key == key && _.Value == value)
+                .FirstOrDefault();
 
             if (set == null)
             {
                 _realm.Add(new SetDto
                 {
-                    Created = DateTimeOffset.UtcNow,
-                    Key = compoundKey,
+                    Key = key,
                     ExpireAt = null,
                     Value = value,
                     Score = score
@@ -199,9 +189,10 @@ namespace Hangfire.Realm
 
         public override void RemoveFromSet(string key, string value)
         {
-            var compoundKey = SetDto.CreateCompoundKey(key, value);
-            var set = _realm.Find<SetDto>(compoundKey);
-                
+            var set = _realm.All<SetDto>()
+                .Where(_ => _.Key == key && _.Value == value)
+                .FirstOrDefault();
+
             if (set == null) return;
 
             _realm.Remove(set);

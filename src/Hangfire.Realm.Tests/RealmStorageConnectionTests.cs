@@ -398,25 +398,25 @@ namespace Hangfire.Realm.Tests
             {
                 realm.Add(new SetDto
                 {
-                    Key = SetDto.CreateCompoundKey("key", "1.0"),
+                    Key = "key",
                     Value = "1.0",
                     Score = 1.0
                 });
                 realm.Add(new SetDto
                 {
-                    Key = SetDto.CreateCompoundKey("key", "-5.0"),
+                    Key = "key",
                     Value = "-5.0",
                     Score = -5.0
                 });
                 realm.Add(new SetDto
                 {
-                    Key = SetDto.CreateCompoundKey("key", "-1.0"),
+                    Key = "key",
                     Value = "-1.0",
                     Score = -1.0
                 });
                 realm.Add(new SetDto
                 {
-                    Key = SetDto.CreateCompoundKey("key", "-2.0"),
+                    Key = "key",
                     Value = "-2.0",
                     Score = -2.0
                 });

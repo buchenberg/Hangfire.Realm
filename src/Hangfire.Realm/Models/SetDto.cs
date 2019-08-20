@@ -7,6 +7,8 @@ namespace Hangfire.Realm.Models
     public class SetDto : RealmObject, IExpireAt
     {
         [PrimaryKey]
+        public string Id { get; set; } = Guid.NewGuid().ToString();
+
         public string Key { get; set; } 
 
         public DateTimeOffset Created { get; set; } = DateTimeOffset.Now;
@@ -17,9 +19,9 @@ namespace Hangfire.Realm.Models
         
         public double Score { get; set; }
 
-        public static string CreateCompoundKey(string key, string value)
-        {
-            return $"{key}<{value}>";
-        }
+        //public static string CreateCompoundKey(string key, string value)
+        //{
+        //    return $"{key}<{value}>";
+        //}
     }
 }

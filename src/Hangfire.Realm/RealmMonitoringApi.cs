@@ -21,29 +21,29 @@ namespace Hangfire.Realm
 
         public IList<QueueWithTopEnqueuedJobsDto> Queues()
 		{
-            using (var realm = _realmDbContext.GetRealm())
+            var realm = _realmDbContext.GetRealm();
+
+            var queues = realm.GetQueues();
+
+            var result = new List<QueueWithTopEnqueuedJobsDto>(queues.Count);
+            foreach (var queue in queues)
             {
-                var queues = realm.GetQueues();
+                var enqueuedJobIds = realm.GetEnqueuedJobIds(queue, 0, 5);
+                var counters = realm.GetEnqueuedAndFetchedCount(queue);
+                var enqueudJobs = realm.GetEnqueuedJobs(enqueuedJobIds);
 
-                var result = new List<QueueWithTopEnqueuedJobsDto>(queues.Count);
-                foreach (var queue in queues)
+                result.Add(new QueueWithTopEnqueuedJobsDto
                 {
-                    var enqueuedJobIds = realm.GetEnqueuedJobIds(queue, 0, 5);
-                    var counters = realm.GetEnqueuedAndFetchedCount(queue);
-                    var enqueudJobs = realm.GetEnqueuedJobs(enqueuedJobIds);
-
-                    result.Add(new QueueWithTopEnqueuedJobsDto
-                    {
-                        Name = queue,
-                        Length = counters.enqueuedCount,
-                        Fetched = counters.fetchedCount,
-                        FirstJobs = enqueudJobs
-                    });
-                }
-
-                return result;
-
+                    Name = queue,
+                    Length = counters.enqueuedCount,
+                    Fetched = counters.fetchedCount,
+                    FirstJobs = enqueudJobs
+                });
             }
+
+            return result;
+
+      
                
 		}
 
