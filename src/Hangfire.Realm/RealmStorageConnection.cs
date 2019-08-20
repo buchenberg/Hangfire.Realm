@@ -14,15 +14,19 @@ namespace Hangfire.Realm
     {
 	    private readonly IRealmDbContext _realmDbContext;
         private readonly RealmJobStorageOptions _storageOptions;
-        private readonly RealmJobStorage _storage;
+        private readonly RealmJobQueue _jobQueue;
 
         public RealmStorageConnection(
-            IRealmDbContext realmDbContext, 
-            RealmJobStorageOptions storageOptions)
+            RealmJobStorageOptions storageOptions,
+            IJobQueueSemaphore jobQueueSemaphore)
 	    {
-		    _realmDbContext = realmDbContext;
-		    _storageOptions = storageOptions;
-            _storage = new RealmJobStorage(storageOptions);
+            _storageOptions = storageOptions ?? throw new ArgumentNullException(nameof(storageOptions));
+            var storage = new RealmJobStorage(storageOptions);
+            _realmDbContext = storage.GetDbContext();
+            _jobQueue = new RealmJobQueue(
+                storage,
+                storageOptions, 
+                jobQueueSemaphore ?? throw new ArgumentNullException(nameof(jobQueueSemaphore)));
         }
 
         public override IWriteOnlyTransaction CreateWriteTransaction()
@@ -51,20 +55,7 @@ namespace Hangfire.Realm
         public override IFetchedJob FetchNextJob(string[] queues, CancellationToken cancellationToken)
         {
             if (queues == null || queues.Length == 0) throw new ArgumentNullException(nameof(queues));
-
-            var providers = queues
-                .Select(queue => _storage.QueueProviders.GetProvider(queue))
-                .Distinct()
-                .ToArray();
-
-            if (providers.Length != 1)
-            {
-                throw new InvalidOperationException(
-                    $"Multiple provider instances registered for queues: {String.Join(", ", queues)}. You should choose only one type of persistent queues per server instance.");
-            }
-
-            var persistentQueue = providers[0].GetJobQueue();
-            return persistentQueue.Dequeue(queues, cancellationToken);
+            return _jobQueue.Dequeue(queues, cancellationToken);
         }
 
 
@@ -293,7 +284,7 @@ namespace Hangfire.Realm
         }
         public override List<string> GetFirstByLowestScoreFromSet(string key, double fromScore, double toScore, int count)
         {
-            if (key == null) throw new ArgumentNullException(nameof(key));
+            //if (key == null) throw new ArgumentNullException(nameof(key));
             if (count <= 0) throw new ArgumentException("The value must be a positive number", nameof(count));
             if (toScore < fromScore) throw new ArgumentException("The `toScore` value must be higher or equal to the `fromScore` value.", nameof(toScore));
             var realm = _realmDbContext.GetRealm();
@@ -335,21 +326,14 @@ namespace Hangfire.Realm
 	    {
             if (key == null) throw new ArgumentNullException(nameof(key));
             var realm = _realmDbContext.GetRealm();
-            var hashList = realm.All<HashDto>()
+            var result = realm.All<HashDto>()
                 .Where(_ => _.Key == key)
-                .ToList();
-            var result = new Dictionary<string, string>();
-            //TODO: This is wonky
-            foreach (var hash in hashList)
-            {
-                foreach (var field in hash.Fields)
-                {
-                    result.Add(field.Key, field.Value);
-                }
-                
-            }
+                .ToList()
+                .SelectMany(_ => _.Fields)
+                .ToList()
+                .GroupBy(_ => _.Key, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(_ => _.Last().Key, _ => _.Last().Value);
             return result.Count != 0 ? result : null;
-
         }
         public override TimeSpan GetSetTtl(string key)
         {

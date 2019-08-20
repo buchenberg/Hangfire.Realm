@@ -17,7 +17,7 @@ namespace Hangfire.Realm
 		    _options = options;
             SchemaVersion = options.RealmConfiguration.SchemaVersion;
 			_realmDbContext = new RealmDbContext(options.RealmConfiguration);
-            InitializeQueueProviders();
+            //InitializeQueueProviders();
         }
 
         public ulong SchemaVersion { get; set; } = 0;
@@ -28,20 +28,20 @@ namespace Hangfire.Realm
 
 	    public override IStorageConnection GetConnection()
 	    {
-		    return new RealmStorageConnection(_realmDbContext, _options);
+		    return new RealmStorageConnection(_options, JobQueueSemaphore.Instance);
 	    }
 
         public IRealmDbContext GetDbContext()
         {
            return _realmDbContext;
         }
-        private void InitializeQueueProviders()
-        {
-            var defaultQueueProvider = new RealmJobQueueProvider(this, _options);
-            QueueProviders = new RealmJobQueueProviderCollection(defaultQueueProvider);
-        }
+        //private void InitializeQueueProviders()
+        //{
+        //    var defaultQueueProvider = new RealmJobQueueProvider(this, _options, JobQueueSemaphore.Instance);
+        //    QueueProviders = new RealmJobQueueProviderCollection(defaultQueueProvider);
+        //}
 
-        public virtual RealmJobQueueProviderCollection QueueProviders { get; private set; }
+        //public virtual RealmJobQueueProviderCollection QueueProviders { get; private set; }
 
     }
 }

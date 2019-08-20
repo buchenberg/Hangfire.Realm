@@ -22,36 +22,34 @@ namespace Hangfire.Realm.Sample.NetCore
             
             BackgroundJobServerOptions serverOptions = new BackgroundJobServerOptions()
             {
-                WorkerCount = 10,
+                WorkerCount = 5,
                 Queues = new[] { "default" },
                 ServerTimeout = TimeSpan.FromMinutes(10),
                 HeartbeatInterval = TimeSpan.FromSeconds(30),
                 ServerCheckInterval = TimeSpan.FromSeconds(10),
-                SchedulePollingInterval = TimeSpan.FromSeconds(10),
-                //CountersAggregateInterval = TimeSpan.FromMinutes(1),
-                //ExpirationCheckInterval = TimeSpan.FromMinutes(15),
-
+                SchedulePollingInterval = TimeSpan.FromSeconds(10)
             };
 
             GlobalConfiguration.Configuration
-            .UseLogProvider(new ColouredConsoleLogProvider(Logging.LogLevel.Trace))
+            .UseLogProvider(new ColouredConsoleLogProvider(Logging.LogLevel.Debug))
             .UseRealmJobStorage(storageOptions);
 
             using (new BackgroundJobServer(serverOptions))
             {
-                //for (var i = 0; i < JobCount; i++)
-                //{
-                //    var jobNumber = i + 1;
-                //    var jobId = BackgroundJob.Enqueue(() =>
-                //    Console.WriteLine($"Fire-and-forget job {jobNumber}"));
-                //    Console.WriteLine($"Job {jobNumber} was given Id {jobId} and placed in queue");
-                //}
+                for (var i = 0; i < JobCount; i++)
+                {
+                    var jobNumber = i + 1;
+                    var jobId = BackgroundJob.Enqueue(() =>
+                    Console.WriteLine($"Fire-and-forget job {jobNumber}"));
+                }
 
                 BackgroundJob.Schedule(() =>
                 Console.WriteLine("Scheduled job"),
                 TimeSpan.FromSeconds(60));
 
-                RecurringJob.AddOrUpdate("some-recurring-job2", () => Console.Write("Recurring job"), Cron.Minutely);
+                RecurringJob.AddOrUpdate("some-recurring-job", () => 
+                Console.WriteLine("Recurring job"), 
+                Cron.Minutely);
 
                 //Console.WriteLine($"{JobCount} job(s) has been enqueued. They will be executed shortly!");
                 //Console.WriteLine();

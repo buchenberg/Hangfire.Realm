@@ -20,11 +20,13 @@ namespace Hangfire.Realm
         private readonly IRealmDbContext _dbContext;
         private readonly RealmJobStorage _storage;
         private readonly RealmJobStorageOptions _options;
+        private readonly IJobQueueSemaphore _semaphore;
 
-        public RealmJobQueue([NotNull] RealmJobStorage storage, RealmJobStorageOptions options)
+        public RealmJobQueue([NotNull] RealmJobStorage storage, RealmJobStorageOptions options, IJobQueueSemaphore semaphore)
         {
             _options = options ?? throw new ArgumentNullException(nameof(options));
             _storage = storage ?? throw new ArgumentNullException(nameof(storage));
+            _semaphore = semaphore ?? throw new ArgumentNullException(nameof(semaphore));
             _dbContext = storage.GetDbContext();
             
         }
@@ -53,6 +55,11 @@ namespace Hangfire.Realm
 
                 if (fetchedJob != null) return fetchedJob;
 
+                if (_semaphore.WaitAny(queues, cancellationToken, _options.QueuePollInterval, out var queue))
+                {
+                    fetchedJob = TryGetEnqueuedJob(queue, cancellationToken);
+                }
+
             }
 
             return fetchedJob;
@@ -68,8 +75,8 @@ namespace Hangfire.Realm
         {
             using (var cancellationEvent = cancellationToken.GetCancellationEvent())
             {
-                WaitHandle.WaitAny(new WaitHandle[] { cancellationEvent.WaitHandle, NewItemInQueueEvent }, _options.QueuePollInterval);
-                cancellationToken.ThrowIfCancellationRequested();
+                //WaitHandle.WaitAny(new WaitHandle[] { cancellationEvent.WaitHandle, NewItemInQueueEvent }, _options.QueuePollInterval);
+                //cancellationToken.ThrowIfCancellationRequested();
                 foreach (var queue in queues)
                 {
                     var fetchedJob = TryGetEnqueuedJob(queue, cancellationToken);
@@ -77,7 +84,7 @@ namespace Hangfire.Realm
                     {
                         continue;
                     }
-                    
+                    _semaphore.WaitNonBlock(queue);
                     return fetchedJob;
                 }
             }
