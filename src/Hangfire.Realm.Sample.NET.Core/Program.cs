@@ -17,7 +17,7 @@ namespace Hangfire.Realm.Sample.NetCore
             {
                 RealmConfiguration = new RealmConfiguration(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Hangfire.Realm.Sample.NetCore.realm")),
                 QueuePollInterval = TimeSpan.FromSeconds(1),
-                SlidingInvisibilityTimeout = TimeSpan.FromSeconds(10)
+                SlidingInvisibilityTimeout = TimeSpan.FromSeconds(60)
             };
             
             BackgroundJobServerOptions serverOptions = new BackgroundJobServerOptions()
