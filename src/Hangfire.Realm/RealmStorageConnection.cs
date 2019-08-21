@@ -13,19 +13,17 @@ namespace Hangfire.Realm
 	internal class RealmStorageConnection : JobStorageConnection
     {
 	    private readonly IRealmDbContext _realmDbContext;
-        private readonly RealmJobStorageOptions _storageOptions;
+        private readonly RealmJobStorage _storage;
         private readonly RealmJobQueue _jobQueue;
 
         public RealmStorageConnection(
-            RealmJobStorageOptions storageOptions,
+            RealmJobStorage storage,
             IJobQueueSemaphore jobQueueSemaphore)
 	    {
-            _storageOptions = storageOptions ?? throw new ArgumentNullException(nameof(storageOptions));
-            var storage = new RealmJobStorage(storageOptions);
+            _storage = storage ?? throw new ArgumentNullException(nameof(storage));
             _realmDbContext = storage.GetDbContext();
             _jobQueue = new RealmJobQueue(
                 storage,
-                storageOptions, 
                 jobQueueSemaphore ?? throw new ArgumentNullException(nameof(jobQueueSemaphore)));
         }
 
@@ -36,7 +34,7 @@ namespace Hangfire.Realm
 
 	    public override IDisposable AcquireDistributedLock(string resource, TimeSpan timeout)
 	    {
-		   return new RealmDistributedLock(resource, timeout, _realmDbContext, _storageOptions);
+		   return new RealmDistributedLock(resource, timeout, _realmDbContext, _storage.Options);
 	    }
 
 	    public override string CreateExpiredJob(Job job, IDictionary<string, string> parameters, DateTime createdAt, TimeSpan expireIn)

@@ -19,12 +19,11 @@ namespace Hangfire.Realm
         private static readonly ILog Logger = LogProvider.For<RealmJobQueue>();
         private readonly IRealmDbContext _dbContext;
         private readonly RealmJobStorage _storage;
-        private readonly RealmJobStorageOptions _options;
         private readonly IJobQueueSemaphore _semaphore;
 
-        public RealmJobQueue([NotNull] RealmJobStorage storage, RealmJobStorageOptions options, IJobQueueSemaphore semaphore)
+        public RealmJobQueue([NotNull] RealmJobStorage storage, [NotNull] IJobQueueSemaphore semaphore)
         {
-            _options = options ?? throw new ArgumentNullException(nameof(options));
+            
             _storage = storage ?? throw new ArgumentNullException(nameof(storage));
             _semaphore = semaphore ?? throw new ArgumentNullException(nameof(semaphore));
             _dbContext = storage.GetDbContext();
@@ -55,7 +54,7 @@ namespace Hangfire.Realm
 
                 if (fetchedJob != null) return fetchedJob;
 
-                if (_semaphore.WaitAny(queues, cancellationToken, _options.QueuePollInterval, out var queue))
+                if (_semaphore.WaitAny(queues, cancellationToken, _storage.Options.QueuePollInterval, out var queue))
                 {
                     fetchedJob = TryGetEnqueuedJob(queue, cancellationToken);
                 }
@@ -96,7 +95,7 @@ namespace Hangfire.Realm
         private RealmFetchedJob TryGetEnqueuedJob(string queue, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var timeout = DateTimeOffset.UtcNow.AddSeconds(_options.SlidingInvisibilityTimeout.Value.TotalSeconds);
+            var timeout = DateTimeOffset.UtcNow.AddSeconds(_storage.Options.SlidingInvisibilityTimeout.Value.TotalSeconds);
             RealmFetchedJob fetchedJob = null;
             var realm = _dbContext.GetRealm();
             realm.Write(() =>
