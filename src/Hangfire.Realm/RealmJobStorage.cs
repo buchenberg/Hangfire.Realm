@@ -7,7 +7,6 @@ namespace Hangfire.Realm
 {
     public class RealmJobStorage : JobStorage
     {
-        //private readonly RealmJobStorageOptions _options;
         
 	    private readonly IRealmDbContext _realmDbContext;
         internal TimeSpan? SlidingInvisibilityTimeout => Options.SlidingInvisibilityTimeout;
@@ -17,7 +16,6 @@ namespace Hangfire.Realm
 		    Options = options;
             SchemaVersion = options.RealmConfiguration.SchemaVersion;
 			_realmDbContext = new RealmDbContext(options.RealmConfiguration);
-            //InitializeQueueProviders();
         }
 
         public ulong SchemaVersion { get; set; }
@@ -37,13 +35,6 @@ namespace Hangfire.Realm
         {
            return _realmDbContext;
         }
-        //private void InitializeQueueProviders()
-        //{
-        //    var defaultQueueProvider = new RealmJobQueueProvider(this, _options, JobQueueSemaphore.Instance);
-        //    QueueProviders = new RealmJobQueueProviderCollection(defaultQueueProvider);
-        //}
-
-        //public virtual RealmJobQueueProviderCollection QueueProviders { get; private set; }
 
     }
 }
