@@ -22,7 +22,7 @@ namespace Hangfire.Realm.Sample.NetCore
             
             BackgroundJobServerOptions serverOptions = new BackgroundJobServerOptions()
             {
-                WorkerCount = 1,
+                WorkerCount = 4,
                 Queues = new[] { "default" },
                 ServerTimeout = TimeSpan.FromMinutes(10),
                 HeartbeatInterval = TimeSpan.FromSeconds(30),

@@ -20,6 +20,7 @@ namespace Hangfire.Realm
         private readonly IRealmDbContext _dbContext;
         private readonly RealmJobStorage _storage;
         private readonly IJobQueueSemaphore _semaphore;
+        private readonly object _mutex = new object();
 
         public RealmJobQueue([NotNull] RealmJobStorage storage, [NotNull] IJobQueueSemaphore semaphore)
         {
@@ -34,6 +35,7 @@ namespace Hangfire.Realm
         [NotNull]
         public IFetchedJob Dequeue(string[] queues, CancellationToken cancellationToken)
         {
+
             if (queues == null)
             {
                 throw new ArgumentNullException(nameof(queues));
@@ -43,83 +45,95 @@ namespace Hangfire.Realm
             {
                 throw new ArgumentException("Queue array must be non-empty.", nameof(queues));
             }
-
-            RealmFetchedJob fetchedJob = null;
-
-            while (fetchedJob == null)
+            lock (_mutex)
             {
+                RealmFetchedJob fetchedJob = null;
 
-                cancellationToken.ThrowIfCancellationRequested();
-                fetchedJob = TryAllQueues(queues, cancellationToken);
-
-                if (fetchedJob != null) return fetchedJob;
-
-                if (_semaphore.WaitAny(queues, cancellationToken, _storage.Options.QueuePollInterval, out var queue))
+                while (fetchedJob == null)
                 {
-                    fetchedJob = TryGetEnqueuedJob(queue, cancellationToken);
+
+                    cancellationToken.ThrowIfCancellationRequested();
+                    fetchedJob = TryAllQueues(queues, cancellationToken);
+
+                    if (fetchedJob != null) return fetchedJob;
+
+                    if (_semaphore.WaitAny(queues, cancellationToken, _storage.Options.QueuePollInterval, out var queue))
+                    {
+                        fetchedJob = TryGetEnqueuedJob(queue, cancellationToken);
+                    }
+
                 }
 
+                return fetchedJob;
             }
 
-            return fetchedJob;
         }
 
         public void Enqueue(string queue, string jobId)
         {
-            var realm = _dbContext.GetRealm();
-            realm.Add(new JobQueueDto { Queue = queue, JobId = jobId });
+            lock (_mutex)
+            {
+                var realm = _dbContext.GetRealm();
+                realm.Write(() =>
+                {
+                    realm.Add(new JobQueueDto { Queue = queue, JobId = jobId });
+                });
+            }
         }
 
         private RealmFetchedJob TryAllQueues(string[] queues, CancellationToken cancellationToken)
         {
-            using (var cancellationEvent = cancellationToken.GetCancellationEvent())
+            lock (_mutex)
             {
-                //WaitHandle.WaitAny(new WaitHandle[] { cancellationEvent.WaitHandle, NewItemInQueueEvent }, _options.QueuePollInterval);
-                //cancellationToken.ThrowIfCancellationRequested();
-                foreach (var queue in queues)
+                using (var cancellationEvent = cancellationToken.GetCancellationEvent())
                 {
-                    var fetchedJob = TryGetEnqueuedJob(queue, cancellationToken);
-                    if (fetchedJob == null)
+                    //WaitHandle.WaitAny(new WaitHandle[] { cancellationEvent.WaitHandle, NewItemInQueueEvent }, _options.QueuePollInterval);
+                    //cancellationToken.ThrowIfCancellationRequested();
+                    foreach (var queue in queues)
                     {
-                        continue;
+                        var fetchedJob = TryGetEnqueuedJob(queue, cancellationToken);
+                        if (fetchedJob == null)
+                        {
+                            continue;
+                        }
+                        _semaphore.WaitNonBlock(queue);
+                        return fetchedJob;
                     }
-                    _semaphore.WaitNonBlock(queue);
-                    return fetchedJob;
                 }
-            }
-            
 
-            return null;
+
+                return null;
+            }
         }
 
         private RealmFetchedJob TryGetEnqueuedJob(string queue, CancellationToken cancellationToken)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            var timeout = DateTimeOffset.UtcNow.AddSeconds(_storage.Options.SlidingInvisibilityTimeout.Value.TotalSeconds);
-            RealmFetchedJob fetchedJob = null;
-            var realm = _dbContext.GetRealm();
-            realm.Write(() =>
+            lock (_mutex)
             {
-               var enqueuedJobs = realm.All<JobQueueDto>();
-               var job = enqueuedJobs
-                .Where(_ => _.Queue == queue)
-                .OrderBy(_ => _.Created)
-                .Where(_ => _.FetchedAt == null || _.FetchedAt <= timeout)
-                .FirstOrDefault();
-                if (job != null)
+                cancellationToken.ThrowIfCancellationRequested();
+                var timeout = DateTimeOffset.UtcNow.AddSeconds(_storage.Options.SlidingInvisibilityTimeout.Value.TotalSeconds);
+                RealmFetchedJob fetchedJob = null;
+                var realm = _dbContext.GetRealm();
+                realm.Write(() =>
                 {
-                    var fetchedAt = DateTimeOffset.UtcNow;
-                    job.FetchedAt = fetchedAt;
-                    fetchedJob = new RealmFetchedJob(_storage, job.Id, job.JobId, job.Queue, fetchedAt);
-                    if (Logger.IsTraceEnabled())
+                    var job = realm.All<JobQueueDto>()
+                 .Where(_ => _.Queue == queue)
+                 .OrderBy(_ => _.Created)
+                 .Where(_ => _.FetchedAt == null)// || _.FetchedAt <= timeout)
+                 .FirstOrDefault();
+                    if (job != null)
                     {
-                        Logger.Trace($"Fetched job {job.JobId} from '{queue}' Thread[{Thread.CurrentThread.ManagedThreadId}]");
+                        if (Logger.IsTraceEnabled())
+                        {
+                            Logger.Trace($"Fetched job {job.JobId} with FetchedAt {job.FetchedAt.ToString()} from '{queue}' by Thread[{Thread.CurrentThread.ManagedThreadId}]");
+                        }
+                        var fetchedAt = DateTimeOffset.UtcNow;
+                        job.FetchedAt = fetchedAt;
+                        fetchedJob = new RealmFetchedJob(_storage, job.Id, job.JobId, job.Queue, fetchedAt);
                     }
-                }
-                
-            });
-            return fetchedJob;
-
+                });
+                return fetchedJob;
+            }
         }
     }
 
