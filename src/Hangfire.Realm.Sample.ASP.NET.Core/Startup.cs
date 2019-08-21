@@ -31,7 +31,9 @@ namespace Hangfire.Realm.Sample.ASP.NET.Core
         {
             RealmJobStorageOptions storageOptions = new RealmJobStorageOptions
             {
-                RealmConfiguration = new RealmConfiguration(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Hangfire.Realm.Sample.NetCore.realm"))
+                RealmConfiguration = new RealmConfiguration(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Hangfire.Realm.Sample.NetCore.realm")),
+                QueuePollInterval = TimeSpan.FromSeconds(1),
+                SlidingInvisibilityTimeout = TimeSpan.FromSeconds(10)
             };
 
             services.AddHangfire(config =>
@@ -42,7 +44,7 @@ namespace Hangfire.Realm.Sample.ASP.NET.Core
             });
             services.AddHangfireServer(options => 
             {
-                options.WorkerCount = 10;
+                options.WorkerCount = 1;
                 options.Queues = new[] { "default" };
                 options.ServerTimeout = TimeSpan.FromMinutes(10);
                 options.HeartbeatInterval = TimeSpan.FromSeconds(30);
@@ -65,7 +67,6 @@ namespace Hangfire.Realm.Sample.ASP.NET.Core
                 // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
                 app.UseHsts();
             }
-            app.UseHangfireServer();
             app.UseHangfireDashboard();
             app.UseStaticFiles();
             app.UseHttpsRedirection();

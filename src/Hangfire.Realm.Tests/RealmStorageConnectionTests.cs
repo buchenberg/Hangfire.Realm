@@ -18,16 +18,17 @@ namespace Hangfire.Realm.Tests
 
         private IRealmDbContext _realmDbContext;
         private RealmStorageConnection _connection;
-        //private Realms.Realm realm;
+        private RealmJobStorage _storage;
 
         [SetUp]
         public void Init()
         {
-            _realmDbContext = new RealmDbContext(ConnectionUtils.GetRealmConfiguration());
-            _connection = new RealmStorageConnection(_realmDbContext, new RealmJobStorageOptions()
+            _storage = new RealmJobStorage(new RealmJobStorageOptions()
             {
-                RealmConfiguration = new RealmConfiguration()
+                RealmConfiguration = ConnectionUtils.GetRealmConfiguration()
             });
+            _realmDbContext = _storage.GetDbContext();
+            _connection = new RealmStorageConnection(_storage, JobQueueSemaphore.Instance) ;
             var realm = _realmDbContext.GetRealm();
             realm.Write(() => realm.RemoveAll());
         }

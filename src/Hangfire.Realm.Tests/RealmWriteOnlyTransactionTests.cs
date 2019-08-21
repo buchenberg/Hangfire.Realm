@@ -301,7 +301,7 @@ namespace Hangfire.Realm.Tests
             // ASSERT
             var set = _realm.All<SetDto>().Single();
 
-            Assert.AreEqual("my-key<my-value>", set.Key);
+            Assert.AreEqual("my-key", set.Key);
             Assert.AreEqual("my-value", set.Value);
             Assert.AreEqual(0.0, set.Score, 2);
         }
@@ -319,7 +319,7 @@ namespace Hangfire.Realm.Tests
             // ASSERT
             var set = _realm.All<SetDto>().ToList();
 
-            Assert.AreEqual("my-key<my-value>", set[0].Key);
+            Assert.AreEqual("my-key", set[0].Key);
             Assert.AreEqual("my-value", set[0].Value);
             Assert.AreEqual(0.0, set[0].Score, 2);
             Assert.AreEqual("another-value", set[1].Value);
@@ -339,7 +339,7 @@ namespace Hangfire.Realm.Tests
             // ASSERT
             var set = _realm.All<SetDto>().Single();
 
-            Assert.AreEqual("my-key<my-value>", set.Key);
+            Assert.AreEqual("my-key", set.Key);
             Assert.AreEqual("my-value", set.Value);
             Assert.AreEqual(0.0, set.Score, 2);
         }
@@ -356,7 +356,7 @@ namespace Hangfire.Realm.Tests
             // ASSERT
             var set = _realm.All<SetDto>().Single();
 
-            Assert.AreEqual("my-key<my-value>", set.Key);
+            Assert.AreEqual("my-key", set.Key);
             Assert.AreEqual("my-value", set.Value);
             Assert.AreEqual(3.2, set.Score, 2);
         }
@@ -374,7 +374,7 @@ namespace Hangfire.Realm.Tests
             // ASSERT
             var set = _realm.All<SetDto>().Single();
 
-            Assert.AreEqual("my-key<my-value>", set.Key);
+            Assert.AreEqual("my-key", set.Key);
             Assert.AreEqual("my-value", set.Value);
             Assert.AreEqual(3.2, set.Score, 2);
         }

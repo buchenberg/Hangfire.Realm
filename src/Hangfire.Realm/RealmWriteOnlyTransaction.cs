@@ -79,7 +79,24 @@ namespace Hangfire.Realm
                 
             InsertStateHistory(job, state);
         }
-        
+
+        internal void SetJobParameter(string id, string name, string value)
+        {
+            if (id is null)
+            {
+                throw new ArgumentNullException(nameof(id));
+            }
+
+            var jobDto = _realm.Find<JobDto>(id);
+            jobDto.Parameters.Add(new ParameterDto
+            {
+                Key = name,
+                Value = value
+            });
+            _realm.Add(jobDto, update: true);
+
+        }
+
         private static void InsertStateHistory(JobDto jobDto, IState state)
         {
             var stateData = new StateDto
@@ -422,7 +439,8 @@ namespace Hangfire.Realm
         public override void Dispose()
         {
             base.Dispose();
-            _transaction.Dispose();
+            _transaction?.Dispose();
+            _realm?.Dispose();
         }
     }
 }

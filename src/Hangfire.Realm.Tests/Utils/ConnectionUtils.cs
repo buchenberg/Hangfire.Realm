@@ -15,7 +15,7 @@ namespace Hangfire.Realm.Tests.Utils
         {
             var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                 GetDatabaseName()); 
-            return Configurations.GetOrAdd(path, p => new RealmConfiguration(p));
+            return Configurations.GetOrAdd(path, p => new RealmConfiguration(p) { SchemaVersion = 1 });
         }
         private static string GetDatabaseName()
         {
