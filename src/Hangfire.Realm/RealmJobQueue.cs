@@ -117,10 +117,10 @@ namespace Hangfire.Realm
                 realm.Write(() =>
                 {
                     var job = realm.All<JobQueueDto>()
-                 .Where(_ => _.Queue == queue)
-                 .OrderBy(_ => _.Created)
-                 .Where(_ => _.FetchedAt == null)// || _.FetchedAt <= timeout)
-                 .FirstOrDefault();
+                     .Where(_ => _.Queue == queue)
+                     .OrderBy(_ => _.Created)
+                     .Where(_ => _.FetchedAt == null || _.FetchedAt >= timeout)
+                     .FirstOrDefault();
                     if (job != null)
                     {
                         if (Logger.IsTraceEnabled())
