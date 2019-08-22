@@ -125,14 +125,7 @@ namespace Hangfire.Realm
                 throw new ArgumentNullException(nameof(jobId));
             }
 
-            var job = _realm.Find<JobDto>(jobId);
-
-            if (job == null)
-            {
-                return null;
-            }
-
-            var state = job.StateHistory.LastOrDefault();
+            var state = _realm.Find<JobDto>(jobId).StateHistory.LastOrDefault();
 
             if (state == null)
             {
@@ -148,6 +141,7 @@ namespace Hangfire.Realm
 
         }
 
+        //TODO Write only (own thread)
 	    public override void AnnounceServer(string serverId, ServerContext context)
 	    {
             if (serverId == null)
@@ -175,8 +169,8 @@ namespace Hangfire.Realm
                 });
             }
         }
-
-	    public override void RemoveServer(string serverId)
+        //TODO Write only (own thread)
+        public override void RemoveServer(string serverId)
 	    {
             if (serverId == null)
             {
@@ -191,8 +185,8 @@ namespace Hangfire.Realm
                 });
             }
         }
-
-	    public override void Heartbeat(string serverId)
+        //TODO Write only (own thread)
+        public override void Heartbeat(string serverId)
 	    {
             if (serverId == null)
             {
@@ -211,8 +205,8 @@ namespace Hangfire.Realm
                 });
             }
         }
-
-	    public override int RemoveTimedOutServers(TimeSpan timeOut)
+        //TODO Write only (own thread)
+        public override int RemoveTimedOutServers(TimeSpan timeOut)
 	    {
             if (timeOut.Duration() != timeOut)
             {
@@ -235,17 +229,17 @@ namespace Hangfire.Realm
             }
             return deletedServerCount;
         }
-        // Set operations
+
+
         public override List<string> GetRangeFromSet([NotNull] string key, int startingFrom, int endingAt)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-            var results = _realm.All<SetDto>()
+            return _realm.All<SetDto>()
                 .Where(_ => _.Key == key)
                 .OrderByDescending(_ => _.Created)
                 .ToList()
                 .Select(_ => _.Value)
                 .ToList();
-            return results;
         }
         [NotNull]
         public override HashSet<string> GetAllItemsFromSet(string key)
@@ -260,8 +254,7 @@ namespace Hangfire.Realm
         public override long GetSetCount(string key)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-            var count = _realm.All<SetDto>().Where(_ => _.Key == key).Count();
-            return count;
+            return _realm.All<SetDto>().Where(_ => _.Key == key).Count();
         }
         public override string GetFirstByLowestScoreFromSet(string key, double fromScore, double toScore)
 	    {
@@ -280,22 +273,19 @@ namespace Hangfire.Realm
         }
         public override List<string> GetFirstByLowestScoreFromSet(string key, double fromScore, double toScore, int count)
         {
-            //if (key == null) throw new ArgumentNullException(nameof(key));
             if (count <= 0) throw new ArgumentException("The value must be a positive number", nameof(count));
             if (toScore < fromScore) throw new ArgumentException("The `toScore` value must be higher or equal to the `fromScore` value.", nameof(toScore));
-            var sets = _realm.All<SetDto>()
-            .Where(_ => _.Key == key);
-            return sets
-                .Where(_ =>
-                _.Score >= fromScore && _.Score <= toScore
-                )
-                .OrderBy(_ => _.Score)
-                .ToList()
-                .Take(count)
-                .Select(_ => _.Value)
-                .ToList();
+            return _realm.All<SetDto>()
+            .Where(_ => _.Key == key)
+            .Where(_ =>_.Score >= fromScore && _.Score <= toScore)
+            .OrderBy(_ => _.Score)
+            .ToList()
+            .Take(count)
+            .Select(_ => _.Value)
+            .ToList();
         }
-        // hash operations
+
+        //TODO Write only (own thread)
         public override void SetRangeInHash(string key, IEnumerable<KeyValuePair<string, string>> keyValuePairs)
 	    {
 
@@ -338,10 +328,7 @@ namespace Hangfire.Realm
             .ToList()
             .Select(_ => _.ExpireAt)
             .Min();
-            if (!result.HasValue) return TimeSpan.FromSeconds(-1);
-
-            return result.Value - DateTimeOffset.UtcNow;
-
+            return result.HasValue ? result.Value - DateTimeOffset.UtcNow : TimeSpan.FromSeconds(-1);
         }
 
         public override long GetCounter(string key)
@@ -361,9 +348,7 @@ namespace Hangfire.Realm
             .ToList()
             .Select(_ => _.ExpireAt)
             .Min();
-            if (!result.HasValue)
-                return TimeSpan.FromSeconds(-1);
-            return result.Value - DateTimeOffset.UtcNow;
+            return result.HasValue ? result.Value - DateTimeOffset.UtcNow : TimeSpan.FromSeconds(-1);
         }
         public override long GetHashCount(string key)
         {
@@ -386,8 +371,6 @@ namespace Hangfire.Realm
             .Select(_ => _.Value)
             .First();
         }
-        
-        //List
 
         public override long GetListCount(string key)
         {
@@ -405,33 +388,29 @@ namespace Hangfire.Realm
             .ToList()
             .Select(_ => _.ExpireAt)
             .Min();
-            if (!result.HasValue) return TimeSpan.FromSeconds(-1);
-
-            return result.Value - DateTimeOffset.UtcNow;
+            return result.HasValue ? result.Value - DateTimeOffset.UtcNow : TimeSpan.FromSeconds(-1);
         }
 
         public override List<string> GetRangeFromList(string key, int startingFrom, int endingAt)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-            var results = _realm.All<ListDto>()
+            return _realm.All<ListDto>()
                 .Where(_ => _.Key == key)
                 .OrderByDescending(_ => _.Created)
                 .ToList()
                 .SelectMany(_ => _.Values)
                 .ToList();
-            return results;
         }
 
         public override List<string> GetAllItemsFromList(string key)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-            var results = _realm.All<ListDto>()
+            return _realm.All<ListDto>()
                 .Where(_ => _.Key == key)
                 .OrderByDescending(_ => _.Created)
                 .ToList()
                 .SelectMany(_ => _.Values)
                 .ToList();
-            return results;
         }
 
     }
