@@ -266,48 +266,47 @@ namespace Hangfire.Realm
             }
         }
 
+        //TODO: This is painfully awkward...
         public override void SetRangeInHash(string key, IEnumerable<KeyValuePair<string, string>> keyValuePairs)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
             if (keyValuePairs == null) throw new ArgumentNullException(nameof(keyValuePairs));
-
-            HashDto hash = new HashDto
+            var persistedHash = _realm.Find<HashDto>(key);
+            if (persistedHash == null)
             {
-                Key = key,
-                Created = DateTimeOffset.UtcNow
-            };
-            foreach (var field in keyValuePairs)
-            {
-                hash.Fields.Add(new FieldDto { Key = field.Key, Value = field.Value });
+                //simple insert of new hash
+                var hash = new HashDto() { Key = key };
+                foreach (var pair in keyValuePairs)
+                {
+                    hash.Fields.Add(new FieldDto
+                    {
+                        Key = pair.Key,
+                        Value = pair.Value
+                    });
+                }
+                _realm.Add(hash);
             }
-            _realm.Add(hash);
-
-            //var hash = _realm.Find<HashDto>(key);
-            //if (hash == null)
-            //{
-            //    hash = _realm.Add(new HashDto
-            //    {
-            //        Created = DateTimeOffset.UtcNow,
-            //        Key = key
-            //    });
-            //}
-                
-            //foreach (var valuePair in keyValuePairs)
-            //{
-            //    var field = hash.Fields.FirstOrDefault(f => f.Key == valuePair.Key);
-            //    if (field == null)
-            //    {
-            //        field = new FieldDto
-            //        {
-            //            Key = valuePair.Key,
-            //            Value = valuePair.Value
-            //        };
-            //        hash.Fields.Add(field);
-            //        continue;
-            //    }
-
-            //    field.Value = valuePair.Value;
-            //}
+            else
+            {
+                //field updates
+                foreach (var pair in keyValuePairs)
+                {
+                    var matchingFields = persistedHash.Fields.Where(_ => _.Key == pair.Key);
+                    if (matchingFields.Any())
+                    {
+                        matchingFields.Single().Value = pair.Value;
+                    }
+                    else
+                    {
+                        persistedHash.Fields.Add(new FieldDto
+                        {
+                            Key = pair.Key,
+                            Value = pair.Value
+                        });
+                    }
+                    
+                }
+            }
         }
 
         public override void RemoveHash(string key)
