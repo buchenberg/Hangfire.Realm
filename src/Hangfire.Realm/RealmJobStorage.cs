@@ -7,15 +7,12 @@ namespace Hangfire.Realm
 {
     public class RealmJobStorage : JobStorage
     {
-        
-	    private readonly IRealmDbContext _realmDbContext;
         internal TimeSpan? SlidingInvisibilityTimeout => Options.SlidingInvisibilityTimeout;
 
         public RealmJobStorage(RealmJobStorageOptions options)
 	    {
-		    Options = options;
+		    Options = options ?? throw new ArgumentNullException(nameof(options));
             SchemaVersion = options.RealmConfiguration.SchemaVersion;
-			_realmDbContext = new RealmDbContext(options.RealmConfiguration);
         }
 
         public ulong SchemaVersion { get; set; }
@@ -31,9 +28,9 @@ namespace Hangfire.Realm
 		    return new RealmStorageConnection(this, JobQueueSemaphore.Instance);
 	    }
 
-        public IRealmDbContext GetDbContext()
+        public Realms.Realm GetRealm()
         {
-           return _realmDbContext;
+            return Realms.Realm.GetInstance(Options.RealmConfiguration);
         }
 
     }

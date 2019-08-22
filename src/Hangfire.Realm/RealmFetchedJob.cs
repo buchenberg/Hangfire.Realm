@@ -11,7 +11,7 @@ namespace Hangfire.Realm
     {
         private static readonly ILog _logger = LogProvider.For<RealmFetchedJob>();
         private readonly object _syncRoot = new object();
-        private readonly IRealmDbContext _dbContext;
+        private readonly RealmJobStorage _storage;
         private readonly string _id;
         private readonly Timer _timer;
         private bool _disposed;
@@ -25,16 +25,12 @@ namespace Hangfire.Realm
             [NotNull] string queue,
             [NotNull] DateTimeOffset? fetchedAt)
         {
-            if (storage == null)
-            {
-                throw new ArgumentNullException(nameof(storage));
-            }
+            
             if (fetchedAt == null)
             {
                 throw new ArgumentNullException(nameof(fetchedAt));
             }
-
-            _dbContext = storage.GetDbContext() ?? throw new ArgumentNullException(nameof(storage));
+            _storage = storage ?? throw new ArgumentNullException(nameof(storage));
             _id = id ?? throw new ArgumentNullException(nameof(id));
             JobId = jobId ?? throw new ArgumentNullException(nameof(jobId));
             Queue = queue ?? throw new ArgumentNullException(nameof(queue));
@@ -59,7 +55,7 @@ namespace Hangfire.Realm
 
                 try
                 {
-                    var realm = _dbContext.GetRealm();
+                    var realm = _storage.GetRealm();
                     realm.Write(() =>
                     {
                         var queuedJob = realm.Find<JobQueueDto>(_id);
@@ -95,7 +91,7 @@ namespace Hangfire.Realm
             lock (_syncRoot)
             {
                 if (!FetchedAt.HasValue) return;
-                var realm = _dbContext.GetRealm();
+                var realm = _storage.GetRealm();
                 var queuedJob = realm.Find<JobQueueDto>(_id);
                 if (queuedJob != null)
                 {
@@ -117,7 +113,7 @@ namespace Hangfire.Realm
             lock (_syncRoot)
             {
                 if (!FetchedAt.HasValue) return;
-                var realm = _dbContext.GetRealm();
+                var realm = _storage.GetRealm();
                 var queuedJob = realm.Find<JobQueueDto>(_id);
                 if (queuedJob != null)
                 {

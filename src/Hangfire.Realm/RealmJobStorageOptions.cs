@@ -15,10 +15,8 @@ namespace Hangfire.Realm
             SlidingInvisibilityTimeout = null;
             JobExpirationCheckInterval = TimeSpan.FromMinutes(30);
         }
-
         public TimeSpan DistributedLockLifetime { get; set; } = TimeSpan.FromSeconds(30);
         public RealmConfigurationBase RealmConfiguration { get; set; }
-
         public TimeSpan QueuePollInterval
         {
             get { return _queuePollInterval; }
