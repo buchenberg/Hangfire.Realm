@@ -266,25 +266,15 @@ namespace Hangfire.Realm
             .ToList();
         }
 
-        //TODO Write only (own thread)
         public override void SetRangeInHash(string key, IEnumerable<KeyValuePair<string, string>> keyValuePairs)
 	    {
             if (key == null) throw new ArgumentNullException(nameof(key));
             if (keyValuePairs == null) throw new ArgumentNullException(nameof(keyValuePairs));
-            var realm = _storage.GetRealm();
-            realm.Write(() =>
+            using (var transaction = new RealmWriteOnlyTransaction(_storage))
             {
-                HashDto hash = new HashDto
-                {
-                    Key = key,
-                    Created = DateTimeOffset.UtcNow
-                };
-                foreach (var field in keyValuePairs)
-                {
-                    hash.Fields.Add(new FieldDto { Key = field.Key, Value = field.Value });
-                }
-                realm.Add(hash);
-            });
+                transaction.SetRangeInHash(key, keyValuePairs);
+                transaction.Commit();
+            }
         }
         [CanBeNull]
         public override Dictionary<string, string> GetAllEntriesFromHash(string key)

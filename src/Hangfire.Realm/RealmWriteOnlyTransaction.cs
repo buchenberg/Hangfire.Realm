@@ -268,41 +268,46 @@ namespace Hangfire.Realm
 
         public override void SetRangeInHash(string key, IEnumerable<KeyValuePair<string, string>> keyValuePairs)
         {
-            if (key == null)
-            {
-                throw new ArgumentNullException(nameof(key));
-            }
-            if (keyValuePairs == null)
-            {
-                throw new ArgumentNullException(nameof(keyValuePairs));
-            }
-            
-            var hash = _realm.Find<HashDto>(key);
-            if (hash == null)
-            {
-                hash = _realm.Add(new HashDto
-                {
-                    Created = DateTimeOffset.UtcNow,
-                    Key = key
-                });
-            }
-                
-            foreach (var valuePair in keyValuePairs)
-            {
-                var field = hash.Fields.FirstOrDefault(f => f.Key == valuePair.Key);
-                if (field == null)
-                {
-                    field = new FieldDto
-                    {
-                        Key = valuePair.Key,
-                        Value = valuePair.Value
-                    };
-                    hash.Fields.Add(field);
-                    continue;
-                }
+            if (key == null) throw new ArgumentNullException(nameof(key));
+            if (keyValuePairs == null) throw new ArgumentNullException(nameof(keyValuePairs));
 
-                field.Value = valuePair.Value;
+            HashDto hash = new HashDto
+            {
+                Key = key,
+                Created = DateTimeOffset.UtcNow
+            };
+            foreach (var field in keyValuePairs)
+            {
+                hash.Fields.Add(new FieldDto { Key = field.Key, Value = field.Value });
             }
+            _realm.Add(hash);
+
+            //var hash = _realm.Find<HashDto>(key);
+            //if (hash == null)
+            //{
+            //    hash = _realm.Add(new HashDto
+            //    {
+            //        Created = DateTimeOffset.UtcNow,
+            //        Key = key
+            //    });
+            //}
+                
+            //foreach (var valuePair in keyValuePairs)
+            //{
+            //    var field = hash.Fields.FirstOrDefault(f => f.Key == valuePair.Key);
+            //    if (field == null)
+            //    {
+            //        field = new FieldDto
+            //        {
+            //            Key = valuePair.Key,
+            //            Value = valuePair.Value
+            //        };
+            //        hash.Fields.Add(field);
+            //        continue;
+            //    }
+
+            //    field.Value = valuePair.Value;
+            //}
         }
 
         public override void RemoveHash(string key)

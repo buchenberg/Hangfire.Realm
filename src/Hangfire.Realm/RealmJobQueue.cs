@@ -17,16 +17,13 @@ namespace Hangfire.Realm
         // without this event, but it helps to reduce the delays in processing.
         internal static readonly AutoResetEvent NewItemInQueueEvent = new AutoResetEvent(false);
         private static readonly ILog Logger = LogProvider.For<RealmJobQueue>();
-        //private readonly IRealmDbContext _dbContext;
         private readonly RealmJobStorage _storage;
         private readonly IJobQueueSemaphore _semaphore;
-        //private readonly object _mutex = new object();
 
         public RealmJobQueue([NotNull] RealmJobStorage storage, [NotNull] IJobQueueSemaphore semaphore)
         {
             _storage = storage ?? throw new ArgumentNullException(nameof(storage));
             _semaphore = semaphore ?? throw new ArgumentNullException(nameof(semaphore));
-            //_dbContext = storage.GetDbContext();
         }
 
 
@@ -43,8 +40,6 @@ namespace Hangfire.Realm
             {
                 throw new ArgumentException("Queue array must be non-empty.", nameof(queues));
             }
-            //lock (_mutex)
-            //{
                 RealmFetchedJob fetchedJob = null;
 
                 while (fetchedJob == null)
@@ -61,10 +56,7 @@ namespace Hangfire.Realm
                     }
 
                 }
-
                 return fetchedJob;
-            //}
-
         }
 
         public void Enqueue(string queue, string jobId)
