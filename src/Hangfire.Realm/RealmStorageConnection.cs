@@ -78,6 +78,7 @@ namespace Hangfire.Realm
             return param?.Value;
 
         }
+
         [CanBeNull]
         public override JobData GetJobData(string jobId)
 	    {
@@ -117,6 +118,7 @@ namespace Hangfire.Realm
             };
             
         }
+
         [CanBeNull]
         public override StateData GetStateData(string jobId)
 	    {
@@ -153,84 +155,67 @@ namespace Hangfire.Realm
             {
                 throw new ArgumentNullException(nameof(context));
             }
-            using (var realm = _storage.GetRealm())
+            var realm = _storage.GetRealm();
+            realm.Write(() =>
             {
-                realm.Write(() =>
+                var server = new ServerDto
                 {
-                    var server = new ServerDto
-                    {
-                        Id = serverId,
-                        WorkerCount = context.WorkerCount,
-                        StartedAt = DateTime.UtcNow,
-                        LastHeartbeat = DateTime.UtcNow
-                    };
-                    ((List<string>)server.Queues).AddRange(context.Queues);
-                    realm.Add(server, update: true);
-                });
-            }
+                    Id = serverId,
+                    WorkerCount = context.WorkerCount,
+                    StartedAt = DateTime.UtcNow,
+                    LastHeartbeat = DateTime.UtcNow
+                };
+                ((List<string>)server.Queues).AddRange(context.Queues);
+                realm.Add(server, update: true);
+            });
+
         }
         //TODO Write only (own thread)
         public override void RemoveServer(string serverId)
 	    {
-            if (serverId == null)
+            if (serverId == null) throw new ArgumentNullException(nameof(serverId));
+            var realm = _storage.GetRealm();
+            realm.Write(() =>
             {
-                throw new ArgumentNullException(nameof(serverId));
-            }
-            using (var realm = _storage.GetRealm())
-            {
-                realm.Write(() =>
-                {
-                    var server = realm.Find<ServerDto>(serverId);
-                    realm.Remove(server);
-                });
-            }
+                var server = realm.Find<ServerDto>(serverId);
+                realm.Remove(server);
+            });
         }
         //TODO Write only (own thread)
         public override void Heartbeat(string serverId)
 	    {
-            if (serverId == null)
+            if (serverId == null) throw new ArgumentNullException(nameof(serverId));
+            var realm = _storage.GetRealm();
+            realm.Write(() =>
             {
-                throw new ArgumentNullException(nameof(serverId));
-            }
-            using (var realm = _storage.GetRealm())
-            {
-                realm.Write(() =>
+                var servers = realm.All<ServerDto>()
+                .Where(d => d.Id == serverId);
+                foreach (var server in servers)
                 {
-                    var servers = realm.All<ServerDto>()
-                    .Where(d => d.Id == serverId);
-                    foreach (var server in servers)
-                    {
-                        server.LastHeartbeat = DateTime.UtcNow;
-                    }
-                });
-            }
+                    server.LastHeartbeat = DateTime.UtcNow;
+                }
+            });
         }
         //TODO Write only (own thread)
         public override int RemoveTimedOutServers(TimeSpan timeOut)
 	    {
             if (timeOut.Duration() != timeOut)
-            {
                 throw new ArgumentException("The `timeOut` value must be positive.", nameof(timeOut));
-            }
             DateTime cutoff = DateTime.UtcNow.Add(timeOut.Negate());
             int deletedServerCount = 0;
-            using (var realm = _storage.GetRealm())
+            var realm = _storage.GetRealm();
+            realm.Write(() =>
             {
-                realm.Write(() =>
+                var servers = realm.All<ServerDto>()
+               .Where(_ => _.LastHeartbeat < cutoff);
+                foreach (var server in servers)
                 {
-                    var servers = realm.All<ServerDto>()
-                   .Where(_ => _.LastHeartbeat < cutoff);
-                    foreach (var server in servers)
-                    {
-                        realm.Remove(server);
-                        deletedServerCount++;
-                    }
-                });
-            }
+                    realm.Remove(server);
+                    deletedServerCount++;
+                }
+            });
             return deletedServerCount;
         }
-
-
         public override List<string> GetRangeFromSet([NotNull] string key, int startingFrom, int endingAt)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
@@ -259,22 +244,18 @@ namespace Hangfire.Realm
         public override string GetFirstByLowestScoreFromSet(string key, double fromScore, double toScore)
 	    {
             if (key == null)
-            {
                 throw new ArgumentNullException(nameof(key));
-            }
-
             if (toScore < fromScore)
-            {
                 throw new ArgumentException("The `toScore` value must be higher or equal to the `fromScore` value.");
-            }
-
             return GetFirstByLowestScoreFromSet(key, fromScore, toScore, 1).FirstOrDefault();
 
         }
         public override List<string> GetFirstByLowestScoreFromSet(string key, double fromScore, double toScore, int count)
         {
-            if (count <= 0) throw new ArgumentException("The value must be a positive number", nameof(count));
-            if (toScore < fromScore) throw new ArgumentException("The `toScore` value must be higher or equal to the `fromScore` value.", nameof(toScore));
+            if (count <= 0)
+                throw new ArgumentException("The value must be a positive number", nameof(count));
+            if (toScore < fromScore)
+                throw new ArgumentException("The `toScore` value must be higher or equal to the `fromScore` value.", nameof(toScore));
             return _realm.All<SetDto>()
             .Where(_ => _.Key == key)
             .Where(_ =>_.Score >= fromScore && _.Score <= toScore)
@@ -288,25 +269,22 @@ namespace Hangfire.Realm
         //TODO Write only (own thread)
         public override void SetRangeInHash(string key, IEnumerable<KeyValuePair<string, string>> keyValuePairs)
 	    {
-
             if (key == null) throw new ArgumentNullException(nameof(key));
             if (keyValuePairs == null) throw new ArgumentNullException(nameof(keyValuePairs));
-            using (var realm = _storage.GetRealm())
+            var realm = _storage.GetRealm();
+            realm.Write(() =>
             {
-                realm.Write(() =>
+                HashDto hash = new HashDto
                 {
-                    HashDto hash = new HashDto
-                    {
-                        Key = key,
-                        Created = DateTimeOffset.UtcNow
-                    };
-                    foreach (var field in keyValuePairs)
-                    {
-                        hash.Fields.Add(new FieldDto { Key = field.Key, Value = field.Value });
-                    }
-                    realm.Add(hash);
-                });
-            }
+                    Key = key,
+                    Created = DateTimeOffset.UtcNow
+                };
+                foreach (var field in keyValuePairs)
+                {
+                    hash.Fields.Add(new FieldDto { Key = field.Key, Value = field.Value });
+                }
+                realm.Add(hash);
+            });
         }
         [CanBeNull]
         public override Dictionary<string, string> GetAllEntriesFromHash(string key)
