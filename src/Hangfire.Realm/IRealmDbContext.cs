@@ -14,7 +14,7 @@ namespace Hangfire.Realm
 
         public RealmDbContext(RealmConfigurationBase realmConfiguration)
         {
-            _realmConfiguration = realmConfiguration;
+            _realmConfiguration = realmConfiguration ?? throw new ArgumentNullException(nameof(realmConfiguration));
         }
         public Realms.Realm GetRealm()
         {

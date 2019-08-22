@@ -22,7 +22,7 @@ namespace Hangfire.Realm.Sample.NetCore
             
             BackgroundJobServerOptions serverOptions = new BackgroundJobServerOptions()
             {
-                WorkerCount = 5,
+                WorkerCount = 10,
                 Queues = new[] { "default" },
                 ServerTimeout = TimeSpan.FromMinutes(10),
                 HeartbeatInterval = TimeSpan.FromSeconds(30),
@@ -36,12 +36,17 @@ namespace Hangfire.Realm.Sample.NetCore
 
             using (new BackgroundJobServer(serverOptions))
             {
+                string jobId = string.Empty;
                 for (var i = 0; i < JobCount; i++)
                 {
                     var jobNumber = i + 1;
-                    var jobId = BackgroundJob.Enqueue(() =>
+                    jobId = BackgroundJob.Enqueue(() =>
                     Console.WriteLine($"Fire-and-forget job {jobNumber}"));
+                    
                 }
+                //BackgroundJob.ContinueJobWith(
+                //        jobId,
+                //        () => Console.WriteLine("Continuation!"));
 
                 BackgroundJob.Schedule(() =>
                 Console.WriteLine("Scheduled job"),

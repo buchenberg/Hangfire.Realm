@@ -12,7 +12,7 @@ namespace Hangfire.Realm
 {
 	internal class RealmStorageConnection : JobStorageConnection
     {
-	    private readonly IRealmDbContext _realmDbContext;
+	    //private readonly IRealmDbContext _realmDbContext;
         private readonly RealmJobStorage _storage;
         private readonly RealmJobQueue _jobQueue;
 
@@ -21,7 +21,7 @@ namespace Hangfire.Realm
             IJobQueueSemaphore jobQueueSemaphore)
 	    {
             _storage = storage ?? throw new ArgumentNullException(nameof(storage));
-            _realmDbContext = storage.GetDbContext();
+            //_realmDbContext = storage.GetDbContext();
             _jobQueue = new RealmJobQueue(
                 storage,
                 jobQueueSemaphore ?? throw new ArgumentNullException(nameof(jobQueueSemaphore)));
@@ -29,19 +29,19 @@ namespace Hangfire.Realm
 
         public override IWriteOnlyTransaction CreateWriteTransaction()
 	    {
-		    return new RealmWriteOnlyTransaction(_realmDbContext);
+		    return new RealmWriteOnlyTransaction(_storage);
 	    }
 
 	    public override IDisposable AcquireDistributedLock(string resource, TimeSpan timeout)
 	    {
-		   return new RealmDistributedLock(resource, timeout, _realmDbContext, _storage.Options);
+            return new RealmDistributedLock(resource, timeout, _storage);
 	    }
 
 	    public override string CreateExpiredJob(Job job, IDictionary<string, string> parameters, DateTime createdAt, TimeSpan expireIn)
 	    {
             string jobId;
 
-            using (var transaction = new RealmWriteOnlyTransaction(_realmDbContext))
+            using (var transaction = new RealmWriteOnlyTransaction(_storage))
             {
                 jobId = transaction.CreateExpiredJob(job, parameters, createdAt, expireIn);
                 transaction.Commit();
@@ -61,18 +61,28 @@ namespace Hangfire.Realm
 	    {
             if (id == null) throw new ArgumentNullException(nameof(id));
             if (name == null) throw new ArgumentNullException(nameof(name));
-            using (var transaction = new RealmWriteOnlyTransaction(_realmDbContext))
+            using (var realm = _storage.GetRealm())
             {
-                transaction.SetJobParameter(id, name, value);
-                transaction.Commit();
+                var jobDto = realm.Find<JobDto>(id);
+                jobDto.Parameters.Add(new ParameterDto
+                {
+                    Key = name,
+                    Value = value
+                });
+                realm.Add(jobDto, update: true);
             }
+            //using (var transaction = new RealmWriteOnlyTransaction(_realmDbContext))
+            //{
+            //    transaction.SetJobParameter(id, name, value);
+            //    transaction.Commit();
+            //}
         }
 
 	    public override string GetJobParameter(string id, string name)
 	    {
             if (id == null) throw new ArgumentNullException(nameof(id));
             if (name == null) throw new ArgumentNullException(nameof(name));
-            using (var realm = _realmDbContext.GetRealm())
+            using (var realm = _storage.GetRealm())
             {
                 var jobDto = realm.Find<JobDto>(id);
                 var param = jobDto.Parameters.Where(_ => _.Key == name).FirstOrDefault();
@@ -87,7 +97,7 @@ namespace Hangfire.Realm
                 throw new ArgumentNullException(nameof(jobId));
             }
 
-            using (var realm = _realmDbContext.GetRealm())
+            using (var realm = _storage.GetRealm())
             {
                 var jobData = realm.Find<JobDto>(jobId);
 
@@ -128,7 +138,7 @@ namespace Hangfire.Realm
                 throw new ArgumentNullException(nameof(jobId));
             }
 
-            using (var realm = _realmDbContext.GetRealm())
+            using (var realm = _storage.GetRealm())
             {
                 var job = realm.Find<JobDto>(jobId);
 
@@ -165,7 +175,7 @@ namespace Hangfire.Realm
             {
                 throw new ArgumentNullException(nameof(context));
             }
-            using (var realm = _realmDbContext.GetRealm())
+            using (var realm = _storage.GetRealm())
             {
                 realm.Write(() =>
                 {
@@ -188,7 +198,7 @@ namespace Hangfire.Realm
             {
                 throw new ArgumentNullException(nameof(serverId));
             }
-            using (var realm = _realmDbContext.GetRealm())
+            using (var realm = _storage.GetRealm())
             {
                 realm.Write(() =>
                 {
@@ -204,7 +214,7 @@ namespace Hangfire.Realm
             {
                 throw new ArgumentNullException(nameof(serverId));
             }
-            using (var realm = _realmDbContext.GetRealm())
+            using (var realm = _storage.GetRealm())
             {
                 realm.Write(() =>
                 {
@@ -226,7 +236,7 @@ namespace Hangfire.Realm
             }
             DateTime cutoff = DateTime.UtcNow.Add(timeOut.Negate());
             int deletedServerCount = 0;
-            using (var realm = _realmDbContext.GetRealm())
+            using (var realm = _storage.GetRealm())
             {
                 realm.Write(() =>
                 {
@@ -245,7 +255,7 @@ namespace Hangfire.Realm
         public override List<string> GetRangeFromSet([NotNull] string key, int startingFrom, int endingAt)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-            using (var realm = _realmDbContext.GetRealm())
+            using (var realm = _storage.GetRealm())
             {
                 var results = realm.All<SetDto>()
                     .Where(_ => _.Key == key)
@@ -260,7 +270,7 @@ namespace Hangfire.Realm
         public override HashSet<string> GetAllItemsFromSet(string key)
 	    {
             if (key == null) throw new ArgumentNullException(nameof(key));
-            using (var realm = _realmDbContext.GetRealm())
+            using (var realm = _storage.GetRealm())
             {
                 var result = realm.All<SetDto>()
                 .Where(_ => _.Key == key)
@@ -272,7 +282,7 @@ namespace Hangfire.Realm
         public override long GetSetCount(string key)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-            using (var realm = _realmDbContext.GetRealm())
+            using (var realm = _storage.GetRealm())
             {
                 var count = realm.All<SetDto>().Where(_ => _.Key == key).Count();
                 return count;
@@ -298,7 +308,7 @@ namespace Hangfire.Realm
             //if (key == null) throw new ArgumentNullException(nameof(key));
             if (count <= 0) throw new ArgumentException("The value must be a positive number", nameof(count));
             if (toScore < fromScore) throw new ArgumentException("The `toScore` value must be higher or equal to the `fromScore` value.", nameof(toScore));
-            using (var realm = _realmDbContext.GetRealm())
+            using (var realm = _storage.GetRealm())
             {
                 var sets = realm.All<SetDto>()
                 .Where(_ => _.Key == key);
@@ -319,7 +329,7 @@ namespace Hangfire.Realm
 
             if (key == null) throw new ArgumentNullException(nameof(key));
             if (keyValuePairs == null) throw new ArgumentNullException(nameof(keyValuePairs));
-            using (var realm = _realmDbContext.GetRealm())
+            using (var realm = _storage.GetRealm())
             {
                 realm.Write(() =>
                 {
@@ -340,7 +350,7 @@ namespace Hangfire.Realm
         public override Dictionary<string, string> GetAllEntriesFromHash(string key)
 	    {
             if (key == null) throw new ArgumentNullException(nameof(key));
-            using (var realm = _realmDbContext.GetRealm())
+            using (var realm = _storage.GetRealm())
             {
                 var result = realm.All<HashDto>()
                 .Where(_ => _.Key == key)
@@ -355,7 +365,7 @@ namespace Hangfire.Realm
         public override TimeSpan GetSetTtl(string key)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-            using (var realm = _realmDbContext.GetRealm())
+            using (var realm = _storage.GetRealm())
             {
                 var result = realm.All<SetDto>().Where(_ => _.Key == key)
                 .ToList()
@@ -371,7 +381,7 @@ namespace Hangfire.Realm
         public override long GetCounter(string key)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-            using (var realm = _realmDbContext.GetRealm())
+            using (var realm = _storage.GetRealm())
             {
                 var result = realm.All<CounterDto>()
                 .Where(_ => _.Key == key)
@@ -386,7 +396,7 @@ namespace Hangfire.Realm
         public override TimeSpan GetHashTtl(string key)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-            using (var realm = _realmDbContext.GetRealm())
+            using (var realm = _storage.GetRealm())
             {
                 var result = realm.All<HashDto>().Where(_ => _.Key == key)
                 .ToList()
@@ -400,7 +410,7 @@ namespace Hangfire.Realm
         public override long GetHashCount(string key)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-            using (var realm = _realmDbContext.GetRealm())
+            using (var realm = _storage.GetRealm())
             {
                 var result = realm.All<HashDto>()
                 .Where(_ => _.Key == key)
@@ -414,7 +424,7 @@ namespace Hangfire.Realm
             if (key == null) throw new ArgumentNullException(nameof(key));
             if (name == null) throw new ArgumentNullException(nameof(name));
             string result = string.Empty;
-            using (var realm = _realmDbContext.GetRealm())
+            using (var realm = _storage.GetRealm())
             {
                 var hashList = realm.All<HashDto>()
                 .Where(_ => _.Key == key)
@@ -435,7 +445,7 @@ namespace Hangfire.Realm
         public override long GetListCount(string key)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-            using (var realm = _realmDbContext.GetRealm())
+            using (var realm = _storage.GetRealm())
             {
                 var result = realm.All<ListDto>()
                 .Where(_ => _.Key == key)
@@ -447,7 +457,7 @@ namespace Hangfire.Realm
         public override TimeSpan GetListTtl(string key)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-            using (var realm = _realmDbContext.GetRealm())
+            using (var realm = _storage.GetRealm())
             {
                 var result = realm.All<ListDto>().Where(_ => _.Key == key)
                 .ToList()
@@ -462,7 +472,7 @@ namespace Hangfire.Realm
         public override List<string> GetRangeFromList(string key, int startingFrom, int endingAt)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-            using (var realm = _realmDbContext.GetRealm())
+            using (var realm = _storage.GetRealm())
             {
                 var results = realm.All<ListDto>()
                     .Where(_ => _.Key == key)
@@ -477,7 +487,7 @@ namespace Hangfire.Realm
         public override List<string> GetAllItemsFromList(string key)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-            using (var realm = _realmDbContext.GetRealm())
+            using (var realm = _storage.GetRealm())
             {
                 var results = realm.All<ListDto>()
                     .Where(_ => _.Key == key)

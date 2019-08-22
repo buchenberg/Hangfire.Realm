@@ -14,9 +14,9 @@ namespace Hangfire.Realm
         private readonly Realms.Realm _realm;
         private readonly Transaction _transaction;
         
-        public RealmWriteOnlyTransaction(IRealmDbContext realmDbContext)
+        public RealmWriteOnlyTransaction(RealmJobStorage storage)
         {
-            _realm = realmDbContext.GetRealm();
+            _realm = storage.GetRealm();
             _transaction =  _realm.BeginWrite();
         }
         public override void ExpireJob(string jobId, TimeSpan expireIn)

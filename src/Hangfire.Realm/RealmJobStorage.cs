@@ -35,6 +35,10 @@ namespace Hangfire.Realm
         {
            return _realmDbContext;
         }
+        public Realms.Realm GetRealm()
+        {
+            return _realmDbContext.GetRealm();
+        }
 
     }
 }

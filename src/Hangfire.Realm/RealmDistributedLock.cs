@@ -10,8 +10,7 @@ namespace Hangfire.Realm
     public sealed class RealmDistributedLock : IDisposable
     {
         private readonly string _resource;
-        private readonly IRealmDbContext _realmDbContext;
-        private readonly RealmJobStorageOptions _storageOptions;
+        private readonly RealmJobStorage _storage;
         private readonly LockDto _lockDto;
         private readonly object _lockObject = new object();
         private Timer _heartbeatTimer;
@@ -20,20 +19,18 @@ namespace Hangfire.Realm
         private static readonly ThreadLocal<Dictionary<string, int>> AcquiredLocks
             = new ThreadLocal<Dictionary<string, int>>(() => new Dictionary<string, int>());
         
-        public RealmDistributedLock(string resource, TimeSpan timeout, IRealmDbContext realmDbContext, RealmJobStorageOptions storageOptions)
+        public RealmDistributedLock(string resource, TimeSpan timeout, RealmJobStorage storage)
         {
-            _resource = resource;
-            _realmDbContext = realmDbContext;
-            _storageOptions = storageOptions;
+            _resource = resource ?? throw new ArgumentNullException(nameof(resource));
+            _storage = storage ?? throw new ArgumentNullException(nameof(storage));
 
             if (!AcquiredLocks.Value.ContainsKey(_resource) || AcquiredLocks.Value[_resource] == 0)
             {
-                var realm = realmDbContext.GetRealm();
+                var realm = _storage.GetRealm();
                 _lockDto = GetLock(realm);
-                
                 Acquire(realm, timeout);
                 AcquiredLocks.Value[_resource] = 1;
-                _heartbeatTimer = StartHeartBeat(_storageOptions.DistributedLockLifetime);
+                _heartbeatTimer = StartHeartBeat(_storage.Options.DistributedLockLifetime);
             }
             else
             {
@@ -58,7 +55,7 @@ namespace Hangfire.Realm
                             return;
                         }
                         
-                        _lockDto.ExpireAt = DateTimeOffset.UtcNow.Add(_storageOptions.DistributedLockLifetime);
+                        _lockDto.ExpireAt = DateTimeOffset.UtcNow.Add(_storage.Options.DistributedLockLifetime);
                         gotLock = true;
                     });
                     
@@ -129,7 +126,7 @@ namespace Hangfire.Realm
                     try
                     {
 
-                        var realm = _realmDbContext.GetRealm();
+                        var realm = _storage.GetRealm();
                         realm.Write(() =>
                         {
                             _lockDto.ExpireAt = DateTimeOffset.UtcNow.Add(distributedLockLifetime);
@@ -166,9 +163,9 @@ namespace Hangfire.Realm
                     _heartbeatTimer.Dispose();
                     _heartbeatTimer = null;
                 }
-                var realm = _realmDbContext.GetRealm();
+                var realm = _storage.GetRealm();
                 realm.Write(() => { _lockDto.ExpireAt = null; });
-
+                
                 if (Logger.IsTraceEnabled())
                 {
                     Logger.Trace($"{_resource} - Release");    
