@@ -1,5 +1,5 @@
-src/.idea/
-src/.vs/
+.vs
+.vscode
 .idea
 obj
 bin
