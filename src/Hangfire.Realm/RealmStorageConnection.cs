@@ -165,19 +165,21 @@ namespace Hangfire.Realm
             {
                 throw new ArgumentNullException(nameof(context));
             }
-            var realm = _realmDbContext.GetRealm();
-            realm.Write(() =>
+            using (var realm = _realmDbContext.GetRealm())
             {
-                var server = new ServerDto
+                realm.Write(() =>
                 {
-                    Id = serverId,
-                    WorkerCount = context.WorkerCount,
-                    StartedAt = DateTime.UtcNow,
-                    LastHeartbeat = DateTime.UtcNow
-                };
-                ((List<string>)server.Queues).AddRange(context.Queues);
-                realm.Add(server, update: true);
-            });
+                    var server = new ServerDto
+                    {
+                        Id = serverId,
+                        WorkerCount = context.WorkerCount,
+                        StartedAt = DateTime.UtcNow,
+                        LastHeartbeat = DateTime.UtcNow
+                    };
+                    ((List<string>)server.Queues).AddRange(context.Queues);
+                    realm.Add(server, update: true);
+                });
+            }
         }
 
 	    public override void RemoveServer(string serverId)
@@ -186,12 +188,14 @@ namespace Hangfire.Realm
             {
                 throw new ArgumentNullException(nameof(serverId));
             }
-            var realm = _realmDbContext.GetRealm();
-            realm.Write(() =>
-            { 
-                var server = realm.Find<ServerDto>(serverId);
-                realm.Remove(server);
-            });
+            using (var realm = _realmDbContext.GetRealm())
+            {
+                realm.Write(() =>
+                {
+                    var server = realm.Find<ServerDto>(serverId);
+                    realm.Remove(server);
+                });
+            }
         }
 
 	    public override void Heartbeat(string serverId)
@@ -200,16 +204,18 @@ namespace Hangfire.Realm
             {
                 throw new ArgumentNullException(nameof(serverId));
             }
-            var realm = _realmDbContext.GetRealm();
-            realm.Write(() =>
+            using (var realm = _realmDbContext.GetRealm())
             {
-                var servers = realm.All<ServerDto>()
-                .Where(d => d.Id == serverId);
-                foreach (var server in servers)
+                realm.Write(() =>
                 {
-                    server.LastHeartbeat = DateTime.UtcNow;
-                }
-            });
+                    var servers = realm.All<ServerDto>()
+                    .Where(d => d.Id == serverId);
+                    foreach (var server in servers)
+                    {
+                        server.LastHeartbeat = DateTime.UtcNow;
+                    }
+                });
+            }
         }
 
 	    public override int RemoveTimedOutServers(TimeSpan timeOut)
@@ -220,17 +226,19 @@ namespace Hangfire.Realm
             }
             DateTime cutoff = DateTime.UtcNow.Add(timeOut.Negate());
             int deletedServerCount = 0;
-            var realm = _realmDbContext.GetRealm();
-            realm.Write(() =>
+            using (var realm = _realmDbContext.GetRealm())
             {
-                var servers = realm.All<ServerDto>()
-               .Where(_ => _.LastHeartbeat < cutoff);
-                foreach (var server in servers)
+                realm.Write(() =>
                 {
-                    realm.Remove(server);
-                    deletedServerCount++;
-                }
-            });
+                    var servers = realm.All<ServerDto>()
+                   .Where(_ => _.LastHeartbeat < cutoff);
+                    foreach (var server in servers)
+                    {
+                        realm.Remove(server);
+                        deletedServerCount++;
+                    }
+                });
+            }
             return deletedServerCount;
         }
         // Set operations
@@ -311,20 +319,22 @@ namespace Hangfire.Realm
 
             if (key == null) throw new ArgumentNullException(nameof(key));
             if (keyValuePairs == null) throw new ArgumentNullException(nameof(keyValuePairs));
-            var realm = _realmDbContext.GetRealm();
-            realm.Write(() =>
+            using (var realm = _realmDbContext.GetRealm())
             {
-                HashDto hash = new HashDto
+                realm.Write(() =>
                 {
-                    Key = key,
-                    Created = DateTimeOffset.UtcNow
-                };
-                foreach (var field in keyValuePairs)
-                {
-                    hash.Fields.Add(new FieldDto { Key = field.Key, Value = field.Value });
-                }
-                realm.Add(hash);
-            });
+                    HashDto hash = new HashDto
+                    {
+                        Key = key,
+                        Created = DateTimeOffset.UtcNow
+                    };
+                    foreach (var field in keyValuePairs)
+                    {
+                        hash.Fields.Add(new FieldDto { Key = field.Key, Value = field.Value });
+                    }
+                    realm.Add(hash);
+                });
+            }
         }
         [CanBeNull]
         public override Dictionary<string, string> GetAllEntriesFromHash(string key)
