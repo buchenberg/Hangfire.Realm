@@ -440,7 +440,7 @@ namespace Hangfire.Realm
         {
             base.Dispose();
             _transaction?.Dispose();
-            _realm?.Dispose();
+            //_realm?.Dispose();
         }
     }
 }
