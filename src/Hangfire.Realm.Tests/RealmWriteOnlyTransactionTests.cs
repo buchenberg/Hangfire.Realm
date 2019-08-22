@@ -20,8 +20,11 @@ namespace Hangfire.Realm.Tests
         [SetUp]
         public void Init()
         {
-            var factory = new RealmDbContext(ConnectionUtils.GetRealmConfiguration());
-            
+            var factory = new RealmJobStorage(new RealmJobStorageOptions()
+            {
+                RealmConfiguration = ConnectionUtils.GetRealmConfiguration()
+            });
+
             _realm = factory.GetRealm();
             _transaction = new RealmWriteOnlyTransaction(factory);
             _realm.RemoveAll();

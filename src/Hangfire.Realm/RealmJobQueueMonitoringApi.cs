@@ -15,26 +15,20 @@ namespace Hangfire.Realm
         private readonly object _cacheLock = new object();
 
         private List<string> _queuesCache = new List<string>();
-        private readonly IRealmDbContext _context;
+        private readonly RealmJobStorage _storage;
         private Stopwatch _cacheUpdated;
         public RealmJobQueueMonitoringApi([NotNull] RealmJobStorage storage)
         {
-            if (storage == null)
-            {
-                throw new ArgumentNullException(nameof(storage));
-            }
-
-            _context = storage.GetDbContext();
+            _storage = storage ?? throw new ArgumentNullException(nameof(storage));
         }
 
         public IEnumerable<string> GetQueues()
         {
-
             lock (_cacheLock)
             {
                 if (_queuesCache.Count == 0 || _cacheUpdated.Elapsed > QueuesCacheTimeout)
                 {
-                    var realm = _context.GetRealm();
+                    var realm = _storage.GetRealm();
                     _queuesCache = realm.All<JobQueueDto>()
                         .Select(q => q.Queue)
                         .Distinct()

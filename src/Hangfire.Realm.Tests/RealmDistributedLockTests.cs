@@ -11,15 +11,16 @@ namespace Hangfire.Realm.Tests
     [TestFixture]
     public class RealmDistributedLockTests
     {
-        private IRealmDbContext _realmDbContext;
-        //private Realms.Realm realm;
+        private RealmJobStorage _storage;
         
         [SetUp]
         public void Init()
         {
-            _realmDbContext = new RealmDbContext(ConnectionUtils.GetRealmConfiguration());
-            var realm = _realmDbContext.GetRealm();
-		    
+            _storage = new RealmJobStorage(new RealmJobStorageOptions()
+            {
+                RealmConfiguration = ConnectionUtils.GetRealmConfiguration()
+            });
+            var realm = _storage.GetRealm();
             realm.Write(() => realm.RemoveAll());
         }
 
@@ -28,10 +29,10 @@ namespace Hangfire.Realm.Tests
         {
             // ARRANGE
             bool lockAcquired;
-            var realm = _realmDbContext.GetRealm();
+            var realm = _storage.GetRealm();
 
             // ACT
-            using (new RealmDistributedLock("resource1", TimeSpan.Zero, _realmDbContext, new RealmJobStorageOptions()))
+            using (new RealmDistributedLock("resource1", TimeSpan.Zero, _storage))
             {
                 lockAcquired = realm.All<LockDto>().Count(l => l.Resource == "resource1" && l.ExpireAt != null) == 1;
             }
@@ -46,13 +47,12 @@ namespace Hangfire.Realm.Tests
             // ARRANGE
             bool lockAcquired1;
             bool lockAcquired2;
-            var realm = _realmDbContext.GetRealm();
+            var realm = _storage.GetRealm();
             // ACT
-            using (new RealmDistributedLock("resource1", TimeSpan.Zero, _realmDbContext, new RealmJobStorageOptions()))
+            using (new RealmDistributedLock("resource1", TimeSpan.Zero, _storage))
             {
                 lockAcquired1 = realm.All<LockDto>().Count(l => l.Resource == "resource1" && l.ExpireAt != null) == 1;
-                using (new RealmDistributedLock("resource1", TimeSpan.Zero, _realmDbContext,
-                    new RealmJobStorageOptions()))
+                using (new RealmDistributedLock("resource1", TimeSpan.Zero, _storage))
                 {
                     lockAcquired2 = realm.All<LockDto>().Count(l => l.Resource == "resource1" && l.ExpireAt != null) == 1;
                 }
@@ -69,15 +69,15 @@ namespace Hangfire.Realm.Tests
             // ARRANGE            
             bool lockAcquired1;
             DistributedLockTimeoutException exception = null;
-            var realm = _realmDbContext.GetRealm();
+            var realm = _storage.GetRealm();
             // ACT
-            using (new RealmDistributedLock("resource1", TimeSpan.Zero, _realmDbContext, new RealmJobStorageOptions()))
+            using (new RealmDistributedLock("resource1", TimeSpan.Zero, _storage))
             {
                 lockAcquired1 = realm.All<LockDto>().Count(l => l.Resource == "resource1" && l.ExpireAt != null) == 1;
                 var t = new Thread(() =>
                 {
                     exception = Assert.Throws<DistributedLockTimeoutException>(() =>
-                        new RealmDistributedLock("resource1", TimeSpan.Zero, _realmDbContext, new RealmJobStorageOptions()));
+                        new RealmDistributedLock("resource1", TimeSpan.Zero, _storage));
                 });
                 t.Start();
                 Assert.True(t.Join(5000), "Thread is hanging unexpected");
@@ -95,7 +95,7 @@ namespace Hangfire.Realm.Tests
             var waitTimeBeforeLockAcquired = TimeSpan.MinValue;
             var t = new Thread(() =>
             {
-                using (new RealmDistributedLock("resource1", TimeSpan.Zero, _realmDbContext, new RealmJobStorageOptions()))
+                using (new RealmDistributedLock("resource1", TimeSpan.Zero, _storage))
                 {
                     Thread.Sleep(TimeSpan.FromSeconds(3));
                 }
@@ -108,7 +108,7 @@ namespace Hangfire.Realm.Tests
             // ACT
             // Record when we try to acquire the lock
             var startTime = DateTime.UtcNow;
-            using (new RealmDistributedLock("resource1", TimeSpan.FromSeconds(100), _realmDbContext, new RealmJobStorageOptions()))
+            using (new RealmDistributedLock("resource1", TimeSpan.FromSeconds(100), _storage))
             {
                 waitTimeBeforeLockAcquired = DateTime.UtcNow - startTime;
             }
@@ -123,9 +123,9 @@ namespace Hangfire.Realm.Tests
             // ARRANGE
             bool lockAcquired;
             bool lockReleased;
-            var realm = _realmDbContext.GetRealm();
+            var realm = _storage.GetRealm();
             // ACT
-            using (new RealmDistributedLock("resource1", TimeSpan.Zero, _realmDbContext, new RealmJobStorageOptions()))
+            using (new RealmDistributedLock("resource1", TimeSpan.Zero, _storage))
             {
                 lockAcquired = realm.All<LockDto>().Count(l => l.Resource == "resource1" && l.ExpireAt != null) == 1;
             }
@@ -140,8 +140,9 @@ namespace Hangfire.Realm.Tests
         [Test]
         public void Acquire_ResourceIsNotLocked_LockExpireSet()
         {
-            var realm = _realmDbContext.GetRealm();
-            using (new RealmDistributedLock("resource1", TimeSpan.Zero, _realmDbContext, new RealmJobStorageOptions{DistributedLockLifetime = TimeSpan.FromSeconds(3)}))
+            var realm = _storage.GetRealm();
+            _storage.Options.DistributedLockLifetime = TimeSpan.FromSeconds(3);
+            using (new RealmDistributedLock("resource1", TimeSpan.Zero, _storage))
             {
                 var initialExpireAt = DateTime.UtcNow;
                 Thread.Sleep(TimeSpan.FromSeconds(5));
@@ -150,6 +151,8 @@ namespace Hangfire.Realm.Tests
                 Assert.NotNull(lockEntry);
                 Assert.True(lockEntry.ExpireAt > initialExpireAt);
             }
+            //reset
+            _storage.Options.DistributedLockLifetime = TimeSpan.FromSeconds(30);
         }
     }
 }

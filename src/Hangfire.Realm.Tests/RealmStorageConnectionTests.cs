@@ -15,8 +15,6 @@ namespace Hangfire.Realm.Tests
     [TestFixture]
     public class RealmStorageConnectionTests
     {
-
-        private IRealmDbContext _realmDbContext;
         private RealmStorageConnection _connection;
         private RealmJobStorage _storage;
 
@@ -27,9 +25,8 @@ namespace Hangfire.Realm.Tests
             {
                 RealmConfiguration = ConnectionUtils.GetRealmConfiguration()
             });
-            _realmDbContext = _storage.GetDbContext();
-            _connection = new RealmStorageConnection(_storage, JobQueueSemaphore.Instance) ;
-            var realm = _realmDbContext.GetRealm();
+            _connection = new RealmStorageConnection(_storage, JobQueueSemaphore.Instance);
+            var realm = _storage.GetRealm();
             realm.Write(() => realm.RemoveAll());
         }
 
@@ -60,7 +57,7 @@ namespace Hangfire.Realm.Tests
                 Queues = new[] { "default" },
                 WorkerCount = 1000
             };
-            var realm = _realmDbContext.GetRealm();
+            var realm = _storage.GetRealm();
 
             // ACT - Create
             _connection.AnnounceServer("server", context1);
@@ -93,7 +90,7 @@ namespace Hangfire.Realm.Tests
 
             var hash3 = new HashDto { Key = "another-hash" };
             hash3.Fields.Add(new FieldDto { Key = "Key3", Value = "Value3" });
-            var realm = _realmDbContext.GetRealm();
+            var realm = _storage.GetRealm();
 
             realm.Write(() =>
             {
@@ -122,7 +119,7 @@ namespace Hangfire.Realm.Tests
                     { "Key1", "Value1" },
                     { "Key2", "Value2" }
                 };
-            var realm = _realmDbContext.GetRealm();
+            var realm = _storage.GetRealm();
             
             _connection.SetRangeInHash("some-hash", fieldDictionary);
 
@@ -147,7 +144,7 @@ namespace Hangfire.Realm.Tests
         [Test]
         public void GetValueFromHash_ReturnsValue_OfAGivenField()
         {
-            var realm = _realmDbContext.GetRealm();
+            var realm = _storage.GetRealm();
             var hash1 = new HashDto { Key = "hash-1" };
             hash1.Fields.Add(new FieldDto { Key = "field-1", Value = "1" });
 
@@ -179,7 +176,7 @@ namespace Hangfire.Realm.Tests
                 new Dictionary<string, string> { { "Key1", "Value1" }, { "Key2", "Value2" } },
                 createdAt,
                 TimeSpan.FromDays(1));
-            var realm = _realmDbContext.GetRealm();
+            var realm = _storage.GetRealm();
 
             Assert.NotNull(jobId);
             Assert.IsNotEmpty(jobId);
@@ -229,7 +226,7 @@ namespace Hangfire.Realm.Tests
                 StateName = "",
                 Created = DateTime.UtcNow
             };
-            var realm = _realmDbContext.GetRealm();
+            var realm = _storage.GetRealm();
 
 
             var stateUpdate = new StateDto
@@ -270,7 +267,7 @@ namespace Hangfire.Realm.Tests
                 StateName = SucceededState.StateName,
                 Created = DateTime.UtcNow
             };
-            var realm = _realmDbContext.GetRealm();
+            var realm = _storage.GetRealm();
             realm.Write(() => { realm.Add(jobDto); });
 
             var result = _connection.GetJobData(jobDto.Id.ToString());
@@ -294,7 +291,7 @@ namespace Hangfire.Realm.Tests
         [Test]
         public void Heartbeat_UpdatesLastHeartbeat_OfTheServerWithGivenId()
         {
-            var realm = _realmDbContext.GetRealm();
+            var realm = _storage.GetRealm();
             realm.Write(() =>
             {
                 var server1 = new ServerDto
@@ -327,7 +324,7 @@ namespace Hangfire.Realm.Tests
         [Test]
         public void RemoveServer_RemovesAServerRecord()
         {
-            var realm = _realmDbContext.GetRealm();
+            var realm = _storage.GetRealm();
             realm.Write(() =>
             {
                 var server1 = new ServerDto
@@ -363,7 +360,7 @@ namespace Hangfire.Realm.Tests
         [Test]
         public void RemoveTimedOutServers_RemovesServers()
         {
-            var realm = _realmDbContext.GetRealm();
+            var realm = _storage.GetRealm();
             realm.Write(() =>
             {
                 realm.Add(new ServerDto
@@ -394,7 +391,7 @@ namespace Hangfire.Realm.Tests
         [Test]
         public void GetFirstByLowestScoreFromSet_ReturnsTheValueWithTheLowestScore()
         {
-            var realm = _realmDbContext.GetRealm();
+            var realm = _storage.GetRealm();
             realm.Write(() =>
             {
                 realm.Add(new SetDto
