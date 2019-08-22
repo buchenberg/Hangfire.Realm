@@ -17,12 +17,12 @@ namespace Hangfire.Realm.Sample.NetCore
             {
                 RealmConfiguration = new RealmConfiguration(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Hangfire.Realm.Sample.NetCore.realm")),
                 QueuePollInterval = TimeSpan.FromSeconds(1),
-                SlidingInvisibilityTimeout = TimeSpan.FromSeconds(60)
+                SlidingInvisibilityTimeout = TimeSpan.FromSeconds(10)
             };
             
             BackgroundJobServerOptions serverOptions = new BackgroundJobServerOptions()
             {
-                WorkerCount = 4,
+                WorkerCount = 5,
                 Queues = new[] { "default" },
                 ServerTimeout = TimeSpan.FromMinutes(10),
                 HeartbeatInterval = TimeSpan.FromSeconds(30),

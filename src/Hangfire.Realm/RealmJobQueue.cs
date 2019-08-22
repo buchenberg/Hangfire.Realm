@@ -20,15 +20,13 @@ namespace Hangfire.Realm
         private readonly IRealmDbContext _dbContext;
         private readonly RealmJobStorage _storage;
         private readonly IJobQueueSemaphore _semaphore;
-        private readonly object _mutex = new object();
+        //private readonly object _mutex = new object();
 
         public RealmJobQueue([NotNull] RealmJobStorage storage, [NotNull] IJobQueueSemaphore semaphore)
         {
-            
             _storage = storage ?? throw new ArgumentNullException(nameof(storage));
             _semaphore = semaphore ?? throw new ArgumentNullException(nameof(semaphore));
             _dbContext = storage.GetDbContext();
-            
         }
 
 
@@ -45,8 +43,8 @@ namespace Hangfire.Realm
             {
                 throw new ArgumentException("Queue array must be non-empty.", nameof(queues));
             }
-            lock (_mutex)
-            {
+            //lock (_mutex)
+            //{
                 RealmFetchedJob fetchedJob = null;
 
                 while (fetchedJob == null)
@@ -65,26 +63,26 @@ namespace Hangfire.Realm
                 }
 
                 return fetchedJob;
-            }
+            //}
 
         }
 
         public void Enqueue(string queue, string jobId)
         {
-            lock (_mutex)
-            {
+            //lock (_mutex)
+           // {
                 var realm = _dbContext.GetRealm();
                 realm.Write(() =>
                 {
                     realm.Add(new JobQueueDto { Queue = queue, JobId = jobId });
                 });
-            }
+           // }
         }
 
         private RealmFetchedJob TryAllQueues(string[] queues, CancellationToken cancellationToken)
         {
-            lock (_mutex)
-            {
+            //lock (_mutex)
+            //{
                 using (var cancellationEvent = cancellationToken.GetCancellationEvent())
                 {
                     //WaitHandle.WaitAny(new WaitHandle[] { cancellationEvent.WaitHandle, NewItemInQueueEvent }, _options.QueuePollInterval);
@@ -103,13 +101,13 @@ namespace Hangfire.Realm
 
 
                 return null;
-            }
+            //}
         }
 
         private RealmFetchedJob TryGetEnqueuedJob(string queue, CancellationToken cancellationToken)
         {
-            lock (_mutex)
-            {
+            //lock (_mutex)
+            //{
                 cancellationToken.ThrowIfCancellationRequested();
                 var timeout = DateTimeOffset.UtcNow.AddSeconds(_storage.Options.SlidingInvisibilityTimeout.Value.TotalSeconds);
                 RealmFetchedJob fetchedJob = null;
@@ -133,7 +131,7 @@ namespace Hangfire.Realm
                     }
                 });
                 return fetchedJob;
-            }
+            //}
         }
     }
 
