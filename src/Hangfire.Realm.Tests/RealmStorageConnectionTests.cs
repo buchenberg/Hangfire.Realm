@@ -37,10 +37,10 @@ namespace Hangfire.Realm.Tests
         }
 
         [Test]
-        public void AcquireLock_ReturnsNonNullInstance()
+        public void AcquireLock_ReturnsNullInstance()
         {
             var @lock = _connection.AcquireDistributedLock("1", TimeSpan.FromSeconds(1));
-            Assert.NotNull(@lock);
+            Assert.Null(@lock);
         }
 
         [Test]

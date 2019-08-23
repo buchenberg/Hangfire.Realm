@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using Hangfire.Annotations;
 using Hangfire.Common;
+using Hangfire.Logging;
 using Hangfire.Realm.Models;
 using Hangfire.Server;
 using Hangfire.Storage;
@@ -15,6 +16,7 @@ namespace Hangfire.Realm
         private readonly RealmJobStorage _storage;
         private readonly RealmJobQueue _jobQueue;
         private readonly Realms.Realm _realm;
+        private static readonly ILog Logger = LogProvider.For<RealmStorageConnection>();
 
         public RealmStorageConnection(
             RealmJobStorage storage,
@@ -29,13 +31,15 @@ namespace Hangfire.Realm
 
         public override IWriteOnlyTransaction CreateWriteTransaction()
 	    {
-		    return new RealmWriteOnlyTransaction(_storage);
+            return new RealmWriteOnlyTransaction(_storage);
 	    }
 
 	    public override IDisposable AcquireDistributedLock(string resource, TimeSpan timeout)
 	    {
-            return new RealmDistributedLock(resource, timeout, _storage);
-	    }
+            //Not needed when using Realm DB
+            return null;
+           // return new RealmDistributedLock(resource, timeout, _storage);
+        }
 
         public override string CreateExpiredJob(Job job, IDictionary<string, string> parameters, DateTime createdAt, TimeSpan expireIn)
         {
@@ -61,11 +65,21 @@ namespace Hangfire.Realm
 	    {
             if (id == null) throw new ArgumentNullException(nameof(id));
             if (name == null) throw new ArgumentNullException(nameof(name));
-            using (var transaction = new RealmWriteOnlyTransaction(_storage))
+            var realm = _storage.GetRealm();
+            realm.Write(() =>
             {
-                transaction.SetJobParameter(id, name, value);
-                transaction.Commit();
-            }
+                var jobDto = realm.Find<JobDto>(id);
+                var jobParams = jobDto.Parameters.Where(_ => _.Key == name);
+                if (jobParams.Any())
+                {
+                    jobParams.Single().Value = value;
+                }
+                else
+                {
+                    jobDto.Parameters.Add(new ParameterDto(name, value));
+                }
+                realm.Add(jobDto, update: true);
+            });
         }
 
 	    public override string GetJobParameter(string id, string name)
@@ -143,7 +157,6 @@ namespace Hangfire.Realm
 
         }
 
-        //TODO Write only (own thread)
 	    public override void AnnounceServer(string serverId, ServerContext context)
 	    {
             if (serverId == null)
@@ -155,19 +168,11 @@ namespace Hangfire.Realm
             {
                 throw new ArgumentNullException(nameof(context));
             }
-            var realm = _storage.GetRealm();
-            realm.Write(() =>
+            using (var transaction = new RealmWriteOnlyTransaction(_storage))
             {
-                var server = new ServerDto
-                {
-                    Id = serverId,
-                    WorkerCount = context.WorkerCount,
-                    StartedAt = DateTime.UtcNow,
-                    LastHeartbeat = DateTime.UtcNow
-                };
-                ((List<string>)server.Queues).AddRange(context.Queues);
-                realm.Add(server, update: true);
-            });
+                transaction.AnnounceServer(serverId, context);
+                transaction.Commit();
+            }
 
         }
         //TODO Write only (own thread)
@@ -302,11 +307,7 @@ namespace Hangfire.Realm
         public override long GetCounter(string key)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-            return _realm.All<CounterDto>()
-            .Where(_ => _.Key == key)
-            .ToList()
-            .Select(_ => (long)_.Value)
-            .Sum();
+            return _realm.Find<CounterDto>(key).Value;
         }
 
         public override TimeSpan GetHashTtl(string key)
