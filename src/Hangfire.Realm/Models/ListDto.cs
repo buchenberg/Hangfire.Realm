@@ -6,7 +6,14 @@ namespace Hangfire.Realm.Models
 {
     public class ListDto : RealmObject, IExpireAt
     {
-        [PrimaryKey]
+        public ListDto()
+        {
+        }
+
+        public ListDto(string key)
+        {
+            Key = key;
+        }
         public string Key { get; set; }
 
         public DateTimeOffset Created { get; set; } = DateTimeOffset.Now;
