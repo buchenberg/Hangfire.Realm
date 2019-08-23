@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using Hangfire.Common;
+using Hangfire.Logging;
 using Hangfire.Realm.Models;
 using Hangfire.States;
 using Hangfire.Storage;
@@ -13,7 +15,8 @@ namespace Hangfire.Realm
     {
         private readonly Realms.Realm _realm;
         private readonly Transaction _transaction;
-        
+        private static readonly ILog Logger = LogProvider.For<RealmStorageConnection>();
+
         public RealmWriteOnlyTransaction(RealmJobStorage storage)
         {
             _realm = storage.GetRealm();
@@ -80,6 +83,7 @@ namespace Hangfire.Realm
             InsertStateHistory(job, state);
         }
 
+        #region custom internal transactions
         internal void SetJobParameter(string id, string name, string value)
         {
             if (id is null)
@@ -96,6 +100,38 @@ namespace Hangfire.Realm
             _realm.Add(jobDto, update: true);
 
         }
+
+        internal LockDto AddLock(string resource)
+        {
+            if (resource is null)
+            {
+                throw new ArgumentNullException(nameof(resource));
+            }
+
+            return _realm.Add(new LockDto
+            {
+                Resource = resource,
+                ExpireAt = null
+            }, update: true);
+
+        }
+
+        internal void SetLockExpiry(string resource, DateTimeOffset dateTimeOffset)
+        {
+            if (resource is null)
+            {
+                throw new ArgumentNullException(nameof(resource));
+            }
+
+            _realm.Add(new LockDto
+            {
+                Resource = resource,
+                ExpireAt = dateTimeOffset
+            }, update: true);
+
+        }
+
+        #endregion
 
         private static void InsertStateHistory(JobDto jobDto, IState state)
         {
@@ -191,13 +227,7 @@ namespace Hangfire.Realm
 
             if (set == null)
             {
-                _realm.Add(new SetDto
-                {
-                    Key = key,
-                    ExpireAt = null,
-                    Value = value,
-                    Score = score
-                });
+                _realm.Add(new SetDto(key, value, score));
                 return;
             }
 
@@ -208,7 +238,7 @@ namespace Hangfire.Realm
         {
             var set = _realm.All<SetDto>()
                 .Where(_ => _.Key == key && _.Value == value)
-                .FirstOrDefault();
+                .Single();
 
             if (set == null) return;
 
@@ -275,14 +305,10 @@ namespace Hangfire.Realm
             if (persistedHash == null)
             {
                 //simple insert of new hash
-                var hash = new HashDto() { Key = key };
+                var hash = new HashDto(key);
                 foreach (var pair in keyValuePairs)
                 {
-                    hash.Fields.Add(new FieldDto
-                    {
-                        Key = pair.Key,
-                        Value = pair.Value
-                    });
+                    hash.Fields.Add(new FieldDto(pair.Key, pair.Value));
                 }
                 _realm.Add(hash);
             }
@@ -298,11 +324,7 @@ namespace Hangfire.Realm
                     }
                     else
                     {
-                        persistedHash.Fields.Add(new FieldDto
-                        {
-                            Key = pair.Key,
-                            Value = pair.Value
-                        });
+                        persistedHash.Fields.Add(new FieldDto(pair.Key, pair.Value));
                     }
                     
                 }
