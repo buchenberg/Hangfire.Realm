@@ -671,11 +671,11 @@ namespace Hangfire.Realm.Tests
             _transaction.Commit();
 
             // ASSERT
-            var set1 = _realm.Find<SetDto>("Set1");
-            var set2 = _realm.Find<SetDto>("Set2");
+            var set1 = _realm.All<SetDto>().Where(_ => _.Key == "Set1" && _.Value == "value1").Single();
+            var set2 = _realm.All<SetDto>().Where(_ => _.Key == "Set2" && _.Value == "value2").Single();
             Assert.IsNotNull(set1);
             Assert.NotNull(set1.ExpireAt);
-            Assert.True(DateTime.UtcNow.AddMinutes(-1) < set1.ExpireAt && set1.ExpireAt <= DateTime.UtcNow.AddDays(1));
+            Assert.True(DateTimeOffset.UtcNow.AddMinutes(-1) < set1.ExpireAt && set1.ExpireAt <= DateTimeOffset.UtcNow.AddDays(1.5));
             Assert.IsNull(set2.ExpireAt);
         }
         
@@ -707,12 +707,13 @@ namespace Hangfire.Realm.Tests
         public void ExpireHash_SetExpirationDate_ExpirationDataSet()
         {
             // ARRANGE
-            var hash1 = new HashDto { Key = "Hash1"};
-            var hash2 = new HashDto { Key = "Hash2" };
+            var hash1 = new HashDto("Hash1");
+            var hash2 = new HashDto("Hash2");
             _realm.Add(hash1);
             _realm.Add(hash2);
             
             // ACT
+            //expire in one day
             _transaction.ExpireHash("Hash1", TimeSpan.FromDays(1));
             _transaction.Commit();
 
@@ -721,7 +722,10 @@ namespace Hangfire.Realm.Tests
             hash2 = _realm.Find<HashDto>("Hash2");
             Assert.IsNotNull(hash1);
             Assert.NotNull(hash1.ExpireAt);
-            Assert.True(DateTime.UtcNow.AddMinutes(-1) < hash1.ExpireAt && hash1.ExpireAt <= DateTime.UtcNow.AddDays(1));
+            var startTime = DateTimeOffset.UtcNow.AddMinutes(-1);
+            var endTime = DateTimeOffset.UtcNow.AddDays(1.5);
+            Assert.True(startTime < hash1.ExpireAt);
+            Assert.True(hash1.ExpireAt <= endTime);
             Assert.IsNull(hash2.ExpireAt);
         }
         
@@ -729,10 +733,10 @@ namespace Hangfire.Realm.Tests
         public void PersistSet_OfGivenKey_ClearsTheSetExpirationData()
         {
             // ARRANGE
-            var set1 = new SetDto { Key = "Set1", Value = "value1", ExpireAt = DateTime.UtcNow };
+            var set1 = new SetDto("Set1", "value1", 0) { ExpireAt = DateTime.UtcNow };
             _realm.Add(set1);
 
-            var set2 = new SetDto { Key = "Set2", Value = "value2", ExpireAt = DateTime.UtcNow };
+            var set2 = new SetDto("Set2", "value2", 0) { ExpireAt = DateTime.UtcNow };
             _realm.Add(set2);
 
             // ACT
@@ -740,10 +744,10 @@ namespace Hangfire.Realm.Tests
             _transaction.Commit();
 
             // ASSERT
-            var testSet1 = _realm.Find<SetDto>(set1.Key);
+            var testSet1 = _realm.All<SetDto>().Where(_ => _.Key == "Set1" && _.Value == "value1").Single();
             Assert.Null(testSet1.ExpireAt);
 
-            var testSet2 = _realm.Find<SetDto>(set2.Key);
+            var testSet2 = _realm.All<SetDto>().Where(_ => _.Key == "Set2" && _.Value == "value2").Single();
             Assert.NotNull(testSet2.ExpireAt);
         }
         
