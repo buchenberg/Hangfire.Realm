@@ -6,8 +6,17 @@ namespace Hangfire.Realm.Models
 {
     public class SetDto : RealmObject, IExpireAt
     {
-        [PrimaryKey]
-        public string Id { get; set; } = Guid.NewGuid().ToString();
+        public SetDto()
+        {
+        }
+
+        public SetDto(string key, string value, double score)
+        {
+            Key = key;
+            Value = value;
+            Score = score;
+        }
+
 
         public string Key { get; set; } 
 
@@ -19,9 +28,5 @@ namespace Hangfire.Realm.Models
         
         public double Score { get; set; }
 
-        //public static string CreateCompoundKey(string key, string value)
-        //{
-        //    return $"{key}<{value}>";
-        //}
     }
 }

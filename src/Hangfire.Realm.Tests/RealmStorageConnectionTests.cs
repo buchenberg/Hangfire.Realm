@@ -37,10 +37,10 @@ namespace Hangfire.Realm.Tests
         }
 
         [Test]
-        public void AcquireLock_ReturnsNonNullInstance()
+        public void AcquireLock_ReturnsNullInstance()
         {
             var @lock = _connection.AcquireDistributedLock("1", TimeSpan.FromSeconds(1));
-            Assert.NotNull(@lock);
+            Assert.Null(@lock);
         }
 
         [Test]
@@ -82,14 +82,14 @@ namespace Hangfire.Realm.Tests
         [Test]
         public void GetAllEntriesFromHash_ReturnsAllKeysAndTheirValues()
         {
-            var hash1 = new HashDto { Key = "some-hash" };
-            hash1.Fields.Add(new FieldDto { Key = "Key1", Value = "Value1" });
+            var hash1 = new HashDto("some-hash");
+            hash1.Fields.Add(new FieldDto("Key1","Value1"));
 
-            var hash2 = new HashDto { Key = "some-hash" };
-            hash2.Fields.Add(new FieldDto { Key = "Key2", Value = "Value2" });
+            var hash2 = new HashDto("some-hash");
+            hash2.Fields.Add(new FieldDto("Key2", "Value2"));
 
-            var hash3 = new HashDto { Key = "another-hash" };
-            hash3.Fields.Add(new FieldDto { Key = "Key3", Value = "Value3" });
+            var hash3 = new HashDto("another-hash");
+            hash3.Fields.Add(new FieldDto("Key3", "Value3"));
             var realm = _storage.GetRealm();
 
             realm.Write(() =>
@@ -145,14 +145,14 @@ namespace Hangfire.Realm.Tests
         public void GetValueFromHash_ReturnsValue_OfAGivenField()
         {
             var realm = _storage.GetRealm();
-            var hash1 = new HashDto { Key = "hash-1" };
-            hash1.Fields.Add(new FieldDto { Key = "field-1", Value = "1" });
+            var hash1 = new HashDto("hash-1");
+            hash1.Fields.Add(new FieldDto("field-1", "1"));
 
-            var hash2 = new HashDto { Key = "hash-1" };
-            hash2.Fields.Add(new FieldDto { Key = "field-2", Value = "2" });
+            var hash2 = new HashDto("hash-1");
+            hash2.Fields.Add(new FieldDto("field-2", "2"));
 
-            var hash3 = new HashDto { Key = "hash-2" };
-            hash3.Fields.Add(new FieldDto { Key = "field-1", Value = "3" });
+            var hash3 = new HashDto("hash-2");
+            hash3.Fields.Add(new FieldDto("field-1", "3"));                                    
 
             realm.Write(() =>
             {

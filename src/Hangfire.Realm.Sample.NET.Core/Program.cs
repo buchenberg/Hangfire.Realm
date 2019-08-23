@@ -9,7 +9,7 @@ namespace Hangfire.Realm.Sample.NetCore
     public class Program
     {
         private const int JobCount = 100;
-        
+
 
         public static void Main()
         {
@@ -19,7 +19,7 @@ namespace Hangfire.Realm.Sample.NetCore
                 QueuePollInterval = TimeSpan.FromSeconds(1),
                 SlidingInvisibilityTimeout = TimeSpan.FromSeconds(10)
             };
-            
+
             BackgroundJobServerOptions serverOptions = new BackgroundJobServerOptions()
             {
                 WorkerCount = 10,
@@ -42,19 +42,31 @@ namespace Hangfire.Realm.Sample.NetCore
                     var jobNumber = i + 1;
                     jobId = BackgroundJob.Enqueue(() =>
                     Console.WriteLine($"Fire-and-forget job {jobNumber}"));
-                    
                 }
-                //BackgroundJob.ContinueJobWith(
-                //        jobId,
-                //        () => Console.WriteLine("Continuation!"));
+
+                BackgroundJob.ContinueJobWith(
+                  BackgroundJob.ContinueJobWith(
+                    BackgroundJob.Enqueue(
+                         () => Console.WriteLine($"Knock knock..")),
+                           () => Console.WriteLine("Who's there?")),
+                             () => Console.WriteLine("A continuation job!"));
 
                 BackgroundJob.Schedule(() =>
-                Console.WriteLine("Scheduled job"),
-                TimeSpan.FromSeconds(60));
+                Console.WriteLine("A Scheduled job."),
+                TimeSpan.FromMinutes(2));
 
-                RecurringJob.AddOrUpdate("some-recurring-job", () => 
-                Console.WriteLine("Recurring job"), 
+                RecurringJob.AddOrUpdate("recurring-job-1", () =>
+                Console.WriteLine("Recurring job 1."),
                 Cron.Minutely);
+
+                //RecurringJob.AddOrUpdate("recurring-job-2", () =>
+                //Console.WriteLine("Recurring job 2."),
+                //Cron.Minutely);
+
+                //TODO: Not Working.
+                //BackgroundJob.ContinueJobWith(
+                //         "some-recurring-job",
+                //         () => Console.WriteLine($"Recurring job continuation."));
 
                 //Console.WriteLine($"{JobCount} job(s) has been enqueued. They will be executed shortly!");
                 //Console.WriteLine();

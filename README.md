@@ -2,11 +2,11 @@
 
 This [Hangfire](http://hangfire.io) extension adds support for using the lightweight embeddable [Realm](https://realm.io) object database.
 
-_**Warning:** This project is under active development and has not been tested in production. Please use responsibly. Hangfire Continuations are not currently supported. Any developer input is appreciated._
+_**Warning:** This project is under active development and has not been fully tested in production. Please use responsibly. Hangfire Continuations are not currently supported for recurring jobs. Any developer input is appreciated._
 
 ## Installation
 
-This project is not yet available as a NuGet package. Install it by checking it out with Git or downloading it directly as a zip.
+This project is not yet available as a NuGet package. Install it by checking it out with Git or downloading it directly as a zip and adding a reference to the Hangfire.Realm project to your code.
 
 ## Usage
 
@@ -50,6 +50,13 @@ public static void Main()
         RecurringJob.AddOrUpdate("some-recurring-job", () =>
         Console.WriteLine("Recurring job"),
         Cron.Minutely);
+        BackgroundJob.ContinueJobWith(
+                  BackgroundJob.ContinueJobWith(
+                    BackgroundJob.Enqueue(
+                         () => Console.WriteLine($"Knock knock..")),
+                           () => Console.WriteLine("Who's there?")),
+                             () => Console.WriteLine("A continuation job!"));
+
         Console.Read();
     }
 }

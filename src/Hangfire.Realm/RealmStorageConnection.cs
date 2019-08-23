@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using Hangfire.Annotations;
 using Hangfire.Common;
+using Hangfire.Logging;
 using Hangfire.Realm.Models;
 using Hangfire.Server;
 using Hangfire.Storage;
@@ -12,16 +13,17 @@ namespace Hangfire.Realm
 {
 	internal class RealmStorageConnection : JobStorageConnection
     {
-	    //private readonly IRealmDbContext _realmDbContext;
         private readonly RealmJobStorage _storage;
         private readonly RealmJobQueue _jobQueue;
+        private readonly Realms.Realm _realm;
+        private static readonly ILog Logger = LogProvider.For<RealmStorageConnection>();
 
         public RealmStorageConnection(
             RealmJobStorage storage,
             IJobQueueSemaphore jobQueueSemaphore)
 	    {
             _storage = storage ?? throw new ArgumentNullException(nameof(storage));
-            //_realmDbContext = storage.GetDbContext();
+            _realm = storage.GetRealm();
             _jobQueue = new RealmJobQueue(
                 storage,
                 jobQueueSemaphore ?? throw new ArgumentNullException(nameof(jobQueueSemaphore)));
@@ -29,16 +31,18 @@ namespace Hangfire.Realm
 
         public override IWriteOnlyTransaction CreateWriteTransaction()
 	    {
-		    return new RealmWriteOnlyTransaction(_storage);
+            return new RealmWriteOnlyTransaction(_storage);
 	    }
 
 	    public override IDisposable AcquireDistributedLock(string resource, TimeSpan timeout)
 	    {
-            return new RealmDistributedLock(resource, timeout, _storage);
-	    }
+            //Not needed when using Realm DB
+            return null;
+           // return new RealmDistributedLock(resource, timeout, _storage);
+        }
 
-	    public override string CreateExpiredJob(Job job, IDictionary<string, string> parameters, DateTime createdAt, TimeSpan expireIn)
-	    {
+        public override string CreateExpiredJob(Job job, IDictionary<string, string> parameters, DateTime createdAt, TimeSpan expireIn)
+        {
             string jobId;
 
             using (var transaction = new RealmWriteOnlyTransaction(_storage))
@@ -61,34 +65,34 @@ namespace Hangfire.Realm
 	    {
             if (id == null) throw new ArgumentNullException(nameof(id));
             if (name == null) throw new ArgumentNullException(nameof(name));
-            using (var realm = _storage.GetRealm())
+            var realm = _storage.GetRealm();
+            realm.Write(() =>
             {
                 var jobDto = realm.Find<JobDto>(id);
-                jobDto.Parameters.Add(new ParameterDto
+                var jobParams = jobDto.Parameters.Where(_ => _.Key == name);
+                if (jobParams.Any())
                 {
-                    Key = name,
-                    Value = value
-                });
+                    jobParams.Single().Value = value;
+                }
+                else
+                {
+                    jobDto.Parameters.Add(new ParameterDto(name, value));
+                }
                 realm.Add(jobDto, update: true);
-            }
-            //using (var transaction = new RealmWriteOnlyTransaction(_realmDbContext))
-            //{
-            //    transaction.SetJobParameter(id, name, value);
-            //    transaction.Commit();
-            //}
+            });
         }
 
 	    public override string GetJobParameter(string id, string name)
 	    {
             if (id == null) throw new ArgumentNullException(nameof(id));
             if (name == null) throw new ArgumentNullException(nameof(name));
-            using (var realm = _storage.GetRealm())
-            {
-                var jobDto = realm.Find<JobDto>(id);
-                var param = jobDto.Parameters.Where(_ => _.Key == name).FirstOrDefault();
-                return param?.Value;
-            }
+
+            var jobDto = _realm.Find<JobDto>(id);
+            var param = jobDto.Parameters.Where(_ => _.Key == name).FirstOrDefault();
+            return param?.Value;
+
         }
+
         [CanBeNull]
         public override JobData GetJobData(string jobId)
 	    {
@@ -97,39 +101,38 @@ namespace Hangfire.Realm
                 throw new ArgumentNullException(nameof(jobId));
             }
 
-            using (var realm = _storage.GetRealm())
+            var jobData = _realm.Find<JobDto>(jobId);
+
+            if (jobData == null)
             {
-                var jobData = realm.Find<JobDto>(jobId);
-
-                if (jobData == null)
-                {
-                    return null;
-                }
-
-                var invocationData = SerializationHelper.Deserialize<InvocationData>(jobData.InvocationData);
-                invocationData.Arguments = jobData.Arguments;
-
-                Job job = null;
-                JobLoadException loadException = null;
-
-                try
-                {
-                    job = invocationData.DeserializeJob();
-                }
-                catch (JobLoadException ex)
-                {
-                    loadException = ex;
-                }
-
-                return new JobData
-                {
-                    Job = job,
-                    State = jobData.StateName,
-                    CreatedAt = jobData.Created.DateTime,
-                    LoadException = loadException
-                };
+                return null;
             }
+
+            var invocationData = SerializationHelper.Deserialize<InvocationData>(jobData.InvocationData);
+            invocationData.Arguments = jobData.Arguments;
+
+            Job job = null;
+            JobLoadException loadException = null;
+
+            try
+            {
+                job = invocationData.DeserializeJob();
+            }
+            catch (JobLoadException ex)
+            {
+                loadException = ex;
+            }
+
+            return new JobData
+            {
+                Job = job,
+                State = jobData.StateName,
+                CreatedAt = jobData.Created.DateTime,
+                LoadException = loadException
+            };
+            
         }
+
         [CanBeNull]
         public override StateData GetStateData(string jobId)
 	    {
@@ -138,29 +141,19 @@ namespace Hangfire.Realm
                 throw new ArgumentNullException(nameof(jobId));
             }
 
-            using (var realm = _storage.GetRealm())
+            var state = _realm.Find<JobDto>(jobId).StateHistory.LastOrDefault();
+
+            if (state == null)
             {
-                var job = realm.Find<JobDto>(jobId);
-
-                if (job == null)
-                {
-                    return null;
-                }
-
-                var state = job.StateHistory.LastOrDefault();
-
-                if (state == null)
-                {
-                    return null;
-                }
-
-                return new StateData
-                {
-                    Name = state.Name,
-                    Reason = state.Reason,
-                    Data = state.Data.ToDictionary(x => x.Key, x => x.Value)
-                };
+                return null;
             }
+
+            return new StateData
+            {
+                Name = state.Name,
+                Reason = state.Reason,
+                Data = state.Data.ToDictionary(x => x.Key, x => x.Value)
+            };
 
         }
 
@@ -175,328 +168,218 @@ namespace Hangfire.Realm
             {
                 throw new ArgumentNullException(nameof(context));
             }
-            using (var realm = _storage.GetRealm())
+            using (var transaction = new RealmWriteOnlyTransaction(_storage))
             {
-                realm.Write(() =>
-                {
-                    var server = new ServerDto
-                    {
-                        Id = serverId,
-                        WorkerCount = context.WorkerCount,
-                        StartedAt = DateTime.UtcNow,
-                        LastHeartbeat = DateTime.UtcNow
-                    };
-                    ((List<string>)server.Queues).AddRange(context.Queues);
-                    realm.Add(server, update: true);
-                });
+                transaction.AnnounceServer(serverId, context);
+                transaction.Commit();
             }
-        }
 
-	    public override void RemoveServer(string serverId)
+        }
+        //TODO Write only (own thread)
+        public override void RemoveServer(string serverId)
 	    {
-            if (serverId == null)
+            if (serverId == null) throw new ArgumentNullException(nameof(serverId));
+            var realm = _storage.GetRealm();
+            realm.Write(() =>
             {
-                throw new ArgumentNullException(nameof(serverId));
-            }
-            using (var realm = _storage.GetRealm())
-            {
-                realm.Write(() =>
-                {
-                    var server = realm.Find<ServerDto>(serverId);
-                    realm.Remove(server);
-                });
-            }
+                var server = realm.Find<ServerDto>(serverId);
+                realm.Remove(server);
+            });
         }
-
-	    public override void Heartbeat(string serverId)
+        //TODO Write only (own thread)
+        public override void Heartbeat(string serverId)
 	    {
-            if (serverId == null)
+            if (serverId == null) throw new ArgumentNullException(nameof(serverId));
+            var realm = _storage.GetRealm();
+            realm.Write(() =>
             {
-                throw new ArgumentNullException(nameof(serverId));
-            }
-            using (var realm = _storage.GetRealm())
-            {
-                realm.Write(() =>
+                var servers = realm.All<ServerDto>()
+                .Where(d => d.Id == serverId);
+                foreach (var server in servers)
                 {
-                    var servers = realm.All<ServerDto>()
-                    .Where(d => d.Id == serverId);
-                    foreach (var server in servers)
-                    {
-                        server.LastHeartbeat = DateTime.UtcNow;
-                    }
-                });
-            }
+                    server.LastHeartbeat = DateTime.UtcNow;
+                }
+            });
         }
-
-	    public override int RemoveTimedOutServers(TimeSpan timeOut)
+        //TODO Write only (own thread)
+        public override int RemoveTimedOutServers(TimeSpan timeOut)
 	    {
             if (timeOut.Duration() != timeOut)
-            {
                 throw new ArgumentException("The `timeOut` value must be positive.", nameof(timeOut));
-            }
             DateTime cutoff = DateTime.UtcNow.Add(timeOut.Negate());
             int deletedServerCount = 0;
-            using (var realm = _storage.GetRealm())
+            var realm = _storage.GetRealm();
+            realm.Write(() =>
             {
-                realm.Write(() =>
+                var servers = realm.All<ServerDto>()
+               .Where(_ => _.LastHeartbeat < cutoff);
+                foreach (var server in servers)
                 {
-                    var servers = realm.All<ServerDto>()
-                   .Where(_ => _.LastHeartbeat < cutoff);
-                    foreach (var server in servers)
-                    {
-                        realm.Remove(server);
-                        deletedServerCount++;
-                    }
-                });
-            }
+                    realm.Remove(server);
+                    deletedServerCount++;
+                }
+            });
             return deletedServerCount;
         }
-        // Set operations
         public override List<string> GetRangeFromSet([NotNull] string key, int startingFrom, int endingAt)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-            using (var realm = _storage.GetRealm())
-            {
-                var results = realm.All<SetDto>()
-                    .Where(_ => _.Key == key)
-                    .OrderByDescending(_ => _.Created)
-                    .ToList()
-                    .Select(_ => _.Value)
-                    .ToList();
-                return results;
-            }
+            return _realm.All<SetDto>()
+                .Where(_ => _.Key == key)
+                .OrderByDescending(_ => _.Created)
+                .ToList()
+                .Select(_ => _.Value)
+                .ToList();
         }
         [NotNull]
         public override HashSet<string> GetAllItemsFromSet(string key)
 	    {
             if (key == null) throw new ArgumentNullException(nameof(key));
-            using (var realm = _storage.GetRealm())
-            {
-                var result = realm.All<SetDto>()
-                .Where(_ => _.Key == key)
-                .ToList()
-                .Select(_ => _.Value);
-                return new HashSet<string>(result);
-            }
+            var result = _realm.All<SetDto>()
+            .Where(_ => _.Key == key)
+            .ToList()
+            .Select(_ => _.Value);
+            return new HashSet<string>(result);
         }
         public override long GetSetCount(string key)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-            using (var realm = _storage.GetRealm())
-            {
-                var count = realm.All<SetDto>().Where(_ => _.Key == key).Count();
-                return count;
-            }
+            return _realm.All<SetDto>().Where(_ => _.Key == key).Count();
         }
         public override string GetFirstByLowestScoreFromSet(string key, double fromScore, double toScore)
 	    {
             if (key == null)
-            {
                 throw new ArgumentNullException(nameof(key));
-            }
-
             if (toScore < fromScore)
-            {
                 throw new ArgumentException("The `toScore` value must be higher or equal to the `fromScore` value.");
-            }
-
             return GetFirstByLowestScoreFromSet(key, fromScore, toScore, 1).FirstOrDefault();
 
         }
         public override List<string> GetFirstByLowestScoreFromSet(string key, double fromScore, double toScore, int count)
         {
-            //if (key == null) throw new ArgumentNullException(nameof(key));
-            if (count <= 0) throw new ArgumentException("The value must be a positive number", nameof(count));
-            if (toScore < fromScore) throw new ArgumentException("The `toScore` value must be higher or equal to the `fromScore` value.", nameof(toScore));
-            using (var realm = _storage.GetRealm())
-            {
-                var sets = realm.All<SetDto>()
-                .Where(_ => _.Key == key);
-                return sets
-                    .Where(_ =>
-                    _.Score >= fromScore && _.Score <= toScore
-                    )
-                    .OrderBy(_ => _.Score)
-                    .ToList()
-                    .Take(count)
-                    .Select(_ => _.Value)
-                    .ToList();
-            }
+            if (count <= 0)
+                throw new ArgumentException("The value must be a positive number", nameof(count));
+            if (toScore < fromScore)
+                throw new ArgumentException("The `toScore` value must be higher or equal to the `fromScore` value.", nameof(toScore));
+            return _realm.All<SetDto>()
+            .Where(_ => _.Key == key)
+            .Where(_ =>_.Score >= fromScore && _.Score <= toScore)
+            .OrderBy(_ => _.Score)
+            .ToList()
+            .Take(count)
+            .Select(_ => _.Value)
+            .ToList();
         }
-        // hash operations
+
         public override void SetRangeInHash(string key, IEnumerable<KeyValuePair<string, string>> keyValuePairs)
 	    {
-
             if (key == null) throw new ArgumentNullException(nameof(key));
             if (keyValuePairs == null) throw new ArgumentNullException(nameof(keyValuePairs));
-            using (var realm = _storage.GetRealm())
+            using (var transaction = new RealmWriteOnlyTransaction(_storage))
             {
-                realm.Write(() =>
-                {
-                    HashDto hash = new HashDto
-                    {
-                        Key = key,
-                        Created = DateTimeOffset.UtcNow
-                    };
-                    foreach (var field in keyValuePairs)
-                    {
-                        hash.Fields.Add(new FieldDto { Key = field.Key, Value = field.Value });
-                    }
-                    realm.Add(hash);
-                });
+                transaction.SetRangeInHash(key, keyValuePairs);
+                transaction.Commit();
             }
         }
         [CanBeNull]
         public override Dictionary<string, string> GetAllEntriesFromHash(string key)
 	    {
             if (key == null) throw new ArgumentNullException(nameof(key));
-            using (var realm = _storage.GetRealm())
-            {
-                var result = realm.All<HashDto>()
-                .Where(_ => _.Key == key)
-                .ToList()
-                .SelectMany(_ => _.Fields)
-                .ToList()
-                .GroupBy(_ => _.Key, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(_ => _.Last().Key, _ => _.Last().Value);
-                return result.Count != 0 ? result : null;
-            }
+            var result = _realm.All<HashDto>()
+            .Where(_ => _.Key == key)
+            .ToList()
+            .SelectMany(_ => _.Fields)
+            .ToList()
+            .GroupBy(_ => _.Key, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(_ => _.Last().Key, _ => _.Last().Value);
+            return result.Count != 0 ? result : null;
         }
         public override TimeSpan GetSetTtl(string key)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-            using (var realm = _storage.GetRealm())
-            {
-                var result = realm.All<SetDto>().Where(_ => _.Key == key)
-                .ToList()
-                .Select(_ => _.ExpireAt)
-                .Min();
-                if (!result.HasValue) return TimeSpan.FromSeconds(-1);
-
-                return result.Value - DateTime.UtcNow;
-            }
-
+            var result = _realm.All<SetDto>().Where(_ => _.Key == key)
+            .ToList()
+            .Select(_ => _.ExpireAt)
+            .Min();
+            return result.HasValue ? result.Value - DateTimeOffset.UtcNow : TimeSpan.FromSeconds(-1);
         }
 
         public override long GetCounter(string key)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-            using (var realm = _storage.GetRealm())
-            {
-                var result = realm.All<CounterDto>()
-                .Where(_ => _.Key == key)
-                .ToList()
-                .Select(_ => (long)_.Value)
-                .Sum();
-
-                return result;
-            }
+            return _realm.Find<CounterDto>(key).Value;
         }
 
         public override TimeSpan GetHashTtl(string key)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-            using (var realm = _storage.GetRealm())
-            {
-                var result = realm.All<HashDto>().Where(_ => _.Key == key)
-                .ToList()
-                .Select(_ => _.ExpireAt)
-                .Min();
-                if (!result.HasValue) return TimeSpan.FromSeconds(-1);
-
-                return result.Value - DateTimeOffset.UtcNow;
-            }
+            var result = _realm.All<HashDto>().Where(_ => _.Key == key)
+            .ToList()
+            .Select(_ => _.ExpireAt)
+            .Min();
+            return result.HasValue ? result.Value - DateTimeOffset.UtcNow : TimeSpan.FromSeconds(-1);
         }
         public override long GetHashCount(string key)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-            using (var realm = _storage.GetRealm())
-            {
-                var result = realm.All<HashDto>()
-                .Where(_ => _.Key == key)
-                .Count();
-                return (long)result;
-            }
-            
+            var result = _realm.All<HashDto>()
+            .Where(_ => _.Key == key)
+            .Count();
+            return (long)result;
+
         }
         public override string GetValueFromHash(string key, string name)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
             if (name == null) throw new ArgumentNullException(nameof(name));
-            string result = string.Empty;
-            using (var realm = _storage.GetRealm())
-            {
-                var hashList = realm.All<HashDto>()
-                .Where(_ => _.Key == key)
-                .ToList();
-                foreach (var hash in hashList)
-                {
-                    foreach (var field in hash.Fields.Where(_ => _.Key == name))
-                    {
-                        result += field.Value;
-                    }
-                }
-                return result;
-            }
+            return _realm.All<HashDto>()
+            .Where(_ => _.Key == key)
+            .ToList()
+            .SelectMany(_ => _.Fields)
+            .Where(_ => _.Key == name)
+            .Select(_ => _.Value)
+            .First();
         }
-        
-        //List
 
         public override long GetListCount(string key)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-            using (var realm = _storage.GetRealm())
-            {
-                var result = realm.All<ListDto>()
-                .Where(_ => _.Key == key)
-                .Count();
-                return (long)result;
-            }
+            var result = _realm.All<ListDto>()
+            .Where(_ => _.Key == key)
+            .Count();
+            return (long)result;
         }
 
         public override TimeSpan GetListTtl(string key)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-            using (var realm = _storage.GetRealm())
-            {
-                var result = realm.All<ListDto>().Where(_ => _.Key == key)
-                .ToList()
-                .Select(_ => _.ExpireAt)
-                .Min();
-                if (!result.HasValue) return TimeSpan.FromSeconds(-1);
-
-                return result.Value - DateTimeOffset.UtcNow;
-            }
+            var result = _realm.All<ListDto>().Where(_ => _.Key == key)
+            .ToList()
+            .Select(_ => _.ExpireAt)
+            .Min();
+            return result.HasValue ? result.Value - DateTimeOffset.UtcNow : TimeSpan.FromSeconds(-1);
         }
 
         public override List<string> GetRangeFromList(string key, int startingFrom, int endingAt)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-            using (var realm = _storage.GetRealm())
-            {
-                var results = realm.All<ListDto>()
-                    .Where(_ => _.Key == key)
-                    .OrderByDescending(_ => _.Created)
-                    .ToList()
-                    .SelectMany(_ => _.Values)
-                    .ToList();
-                return results;
-            }
+            return _realm.All<ListDto>()
+                .Where(_ => _.Key == key)
+                .OrderByDescending(_ => _.Created)
+                .ToList()
+                .SelectMany(_ => _.Values)
+                .ToList();
         }
 
         public override List<string> GetAllItemsFromList(string key)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
-            using (var realm = _storage.GetRealm())
-            {
-                var results = realm.All<ListDto>()
-                    .Where(_ => _.Key == key)
-                    .OrderByDescending(_ => _.Created)
-                    .ToList()
-                    .SelectMany(_ => _.Values)
-                    .ToList();
-                return results;
-            }
+            return _realm.All<ListDto>()
+                .Where(_ => _.Key == key)
+                .OrderByDescending(_ => _.Created)
+                .ToList()
+                .SelectMany(_ => _.Values)
+                .ToList();
         }
 
     }

@@ -6,14 +6,19 @@ namespace Hangfire.Realm.Models
 {
     public class HashDto : RealmObject, IExpireAt
     {
+        public HashDto()
+        {
+        }
+
+        public HashDto(string key)
+        {
+            Key = key;
+        }
+
         [PrimaryKey]
-        public string Id { get; set; } = Guid.NewGuid().ToString();
         public string Key { get; set; }
-
         public DateTimeOffset Created { get; set; } = DateTimeOffset.Now;
-        
         public DateTimeOffset? ExpireAt { get; set; }
-
         public IList<FieldDto> Fields { get; }
     }
 }
