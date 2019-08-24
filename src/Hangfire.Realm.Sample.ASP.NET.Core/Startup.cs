@@ -44,7 +44,7 @@ namespace Hangfire.Realm.Sample.ASP.NET.Core
             });
             services.AddHangfireServer(options => 
             {
-                options.WorkerCount = 1;
+                options.WorkerCount = 10;
                 options.Queues = new[] { "default" };
                 options.ServerTimeout = TimeSpan.FromMinutes(10);
                 options.HeartbeatInterval = TimeSpan.FromSeconds(30);
