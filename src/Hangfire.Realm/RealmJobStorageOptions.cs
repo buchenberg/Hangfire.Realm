@@ -12,7 +12,7 @@ namespace Hangfire.Realm
         public RealmJobStorageOptions()
         {
             QueuePollInterval = TimeSpan.FromSeconds(15);
-            SlidingInvisibilityTimeout = null;
+            SlidingInvisibilityTimeout = TimeSpan.FromMinutes(10);
             JobExpirationCheckInterval = TimeSpan.FromMinutes(30);
         }
         public TimeSpan DistributedLockLifetime { get; set; } = TimeSpan.FromSeconds(30);
