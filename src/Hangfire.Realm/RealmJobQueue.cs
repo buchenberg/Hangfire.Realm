@@ -90,15 +90,14 @@ namespace Hangfire.Realm
         private RealmFetchedJob TryGetEnqueuedJob(string queue, CancellationToken cancellationToken)
         {
                 cancellationToken.ThrowIfCancellationRequested();
-                var timeout = DateTimeOffset.UtcNow.AddSeconds(_storage.Options.SlidingInvisibilityTimeout.Value.TotalSeconds);
+                var timeout = DateTimeOffset.UtcNow.AddSeconds((int)_storage.Options.SlidingInvisibilityTimeout.Value.Negate().TotalSeconds);
                 RealmFetchedJob fetchedJob = null;
                 var realm = _storage.GetRealm();
                 realm.Write(() =>
                 {
                     var job = realm.All<JobQueueDto>()
-                     .Where(_ => _.Queue == queue)
+                     .Where(_ => _.Queue == queue && (_.FetchedAt == null || _.FetchedAt < timeout))
                      .OrderBy(_ => _.Created)
-                     .Where(_ => _.FetchedAt == null || _.FetchedAt >= timeout)
                      .FirstOrDefault();
                     if (job != null)
                     {
