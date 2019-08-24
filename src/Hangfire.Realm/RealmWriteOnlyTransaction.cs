@@ -30,7 +30,10 @@ namespace Hangfire.Realm
                 realm.Write(()=> job.ExpireAt = DateTime.UtcNow.Add(expireIn));
             }
         }
-        public string CreateExpiredJob(Job job, IDictionary<string, string> parameters, DateTime createdAt,
+        public string CreateExpiredJob(
+            Job job, 
+            IDictionary<string, string> parameters, 
+            DateTime createdAt,
             TimeSpan expireIn)
         {
             if (job == null)
