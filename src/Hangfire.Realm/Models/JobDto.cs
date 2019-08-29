@@ -4,7 +4,7 @@ using Realms;
 
 namespace Hangfire.Realm.Models
 {
-	internal class JobDto : RealmObject, IExpireAt
+	public class JobDto : RealmObject, IExpireAt
     {
         [PrimaryKey]
         public string Id { get; set; } = Guid.NewGuid().ToString();
