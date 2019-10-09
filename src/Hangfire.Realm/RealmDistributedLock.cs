@@ -26,11 +26,11 @@ namespace Hangfire.Realm
 
             if (!AcquiredLocks.Value.ContainsKey(_resource) || AcquiredLocks.Value[_resource] == 0)
             {
-                var realm = _storage.GetRealm();
-                _lockDto = GetLock(realm);
-                Acquire(realm, timeout);
+                
+                _lockDto = GetLock();
+                Acquire(timeout);
                 AcquiredLocks.Value[_resource] = 1;
-                _heartbeatTimer = StartHeartBeat(_storage.Options.DistributedLockLifetime);
+                _heartbeatTimer = StartHeartBeat();
             }
             else
             {
@@ -38,7 +38,7 @@ namespace Hangfire.Realm
             }
         }
 
-        private void Acquire(Realms.Realm realm, TimeSpan timeout)
+        private void Acquire(TimeSpan timeout)
         {
             try
             {
@@ -47,6 +47,7 @@ namespace Hangfire.Realm
                 while (true)
                 {
                     var gotLock = false;
+                    var realm = _storage.GetRealm();
                     realm.Write(() =>
                     {
                         // if not in db or expired add or update
@@ -91,9 +92,10 @@ namespace Hangfire.Realm
             return DateTime.UtcNow;
         }
         
-        private LockDto GetLock(Realms.Realm realm)
+        private LockDto GetLock()
         {
             LockDto lockDto = null;
+            var realm = _storage.GetRealm();
             realm.Write(() =>
             {
                 lockDto = realm.Find<LockDto>(_resource);
@@ -114,8 +116,9 @@ namespace Hangfire.Realm
             return TimeSpan.FromMilliseconds((timeout.TotalMilliseconds / 1000) + 5);
         }
         
-        private Timer StartHeartBeat(TimeSpan distributedLockLifetime)
+        private Timer StartHeartBeat()
         {
+            TimeSpan distributedLockLifetime = _storage.Options.DistributedLockLifetime;
             var timerInterval = TimeSpan.FromMilliseconds(distributedLockLifetime.TotalMilliseconds / 5);
             return new Timer(state =>
             {

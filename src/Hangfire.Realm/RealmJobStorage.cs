@@ -8,6 +8,7 @@ namespace Hangfire.Realm
     public class RealmJobStorage : JobStorage
     {
         internal TimeSpan? SlidingInvisibilityTimeout => Options.SlidingInvisibilityTimeout;
+        internal TimeSpan? DistributedLockLifetime => Options.DistributedLockLifetime;
 
         public RealmJobStorage(RealmJobStorageOptions options)
 	    {

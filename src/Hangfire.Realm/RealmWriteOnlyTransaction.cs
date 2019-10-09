@@ -15,20 +15,19 @@ namespace Hangfire.Realm
     public class RealmWriteOnlyTransaction : JobStorageTransaction
     {
         private readonly RealmJobStorage _storage;
-        private static readonly ILog Logger = LogProvider.For<RealmStorageConnection>();
+        private readonly ILog _logger;
 
         public RealmWriteOnlyTransaction(RealmJobStorage storage)
         {
+            _logger = LogProvider.For<RealmStorageConnection>();
             _storage = storage;
         }
         public override void ExpireJob(string jobId, TimeSpan expireIn)
         {
             var realm = _storage.GetRealm();
             var job = realm.Find<JobDto>(jobId);
-            if (job != null)
-            {
-                realm.Write(()=> job.ExpireAt = DateTime.UtcNow.Add(expireIn));
-            }
+            if (job == null) return;
+            realm.Write(() => job.ExpireAt = DateTime.UtcNow.Add(expireIn));
         }
         public string CreateExpiredJob(
             Job job, 
@@ -42,24 +41,25 @@ namespace Hangfire.Realm
             if (parameters == null)
                 throw new ArgumentNullException(nameof(parameters));
 
-            var invocationData = InvocationData.SerializeJob(job);
-
-            var jobDto = new JobDto
-            {
-                InvocationData = SerializationHelper.Serialize<InvocationData>(invocationData),
-                Arguments = invocationData.Arguments,
-                Created = createdAt,
-                ExpireAt = createdAt.Add(expireIn)
-            };
-
-            foreach (var param in parameters)
-            {
-                jobDto.Parameters.Add(new ParameterDto(param.Key, param.Value));
-            }
             var jobId = string.Empty;
             var realm = _storage.GetRealm();
             realm.Write(() =>
             {
+                var invocationData = InvocationData.SerializeJob(job);
+
+                var jobDto = new JobDto
+                {
+                    InvocationData = SerializationHelper.Serialize<InvocationData>(invocationData),
+                    Arguments = invocationData.Arguments,
+                    Created = createdAt,
+                    ExpireAt = createdAt.Add(expireIn)
+                };
+
+                foreach (var param in parameters)
+                {
+                    jobDto.Parameters.Add(new ParameterDto(param.Key, param.Value));
+                }
+                
                 realm.Add(jobDto);
                 jobId = jobDto.Id;
             });
@@ -76,6 +76,7 @@ namespace Hangfire.Realm
 
         public override void SetJobState(string jobId, IState state)
         {
+            _logger.DebugFormat("Setting Hangfire job {0} state to {1}", jobId, state.Name);
             var realm = _storage.GetRealm();
             var job = realm.Find<JobDto>(jobId);
             if (job == null) return;
@@ -146,26 +147,37 @@ namespace Hangfire.Realm
 
         internal void AnnounceServer(string serverId, ServerContext context)
         {
-            if (serverId == null)
+            try
             {
-                throw new ArgumentNullException(nameof(serverId));
-            }
+                if (serverId == null)
+                {
+                    throw new ArgumentNullException(nameof(serverId));
+                }
 
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
+                if (context == null)
+                {
+                    throw new ArgumentNullException(nameof(context));
+                }
+                var realm = _storage.GetRealm();
+                realm.Write(() =>
+                {
+                    var server = new ServerDto
+                    {
+                        Id = serverId,
+                        WorkerCount = context.WorkerCount,
+                        StartedAt = DateTime.UtcNow,
+                        LastHeartbeat = DateTime.UtcNow
+                    };
+                    ((List<string>)server.Queues).AddRange(context.Queues);
+                    realm.Add(server, update: true);
+                }
+                );
             }
-
-            var server = new ServerDto
+            catch (Exception)
             {
-                Id = serverId,
-                WorkerCount = context.WorkerCount,
-                StartedAt = DateTime.UtcNow,
-                LastHeartbeat = DateTime.UtcNow
-            };
-            ((List<string>)server.Queues).AddRange(context.Queues);
-            var realm = _storage.GetRealm();
-            realm.Write(() => realm.Add(server, update: true));
+
+                throw;
+            }
         }
 
         internal void SetLockExpiry(string resource, DateTimeOffset dateTimeOffset)

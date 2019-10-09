@@ -40,58 +40,68 @@ namespace Hangfire.Realm
             {
                 throw new ArgumentException("Queue array must be non-empty.", nameof(queues));
             }
-                RealmFetchedJob fetchedJob = null;
+            RealmFetchedJob fetchedJob = null;
 
-                while (fetchedJob == null)
+            while (fetchedJob == null)
+            {
+
+                cancellationToken.ThrowIfCancellationRequested();
+                fetchedJob = TryAllQueues(queues, cancellationToken);
+
+                if (fetchedJob != null) return fetchedJob;
+
+                if (_semaphore.WaitAny(queues, cancellationToken, _storage.Options.QueuePollInterval, out var queue))
                 {
-
-                    cancellationToken.ThrowIfCancellationRequested();
-                    fetchedJob = TryAllQueues(queues, cancellationToken);
-
-                    if (fetchedJob != null) return fetchedJob;
-
-                    if (_semaphore.WaitAny(queues, cancellationToken, _storage.Options.QueuePollInterval, out var queue))
-                    {
-                        fetchedJob = TryGetEnqueuedJob(queue, cancellationToken);
-                    }
-
+                    fetchedJob = TryGetEnqueuedJob(queue, cancellationToken);
                 }
-                return fetchedJob;
+
+            }
+            return fetchedJob;
         }
 
         public void Enqueue(string queue, string jobId)
         {
+            try
+            {
                 var realm = _storage.GetRealm();
                 realm.Write(() =>
                 {
                     realm.Add(new JobQueueDto { Queue = queue, JobId = jobId });
                 });
+            }
+            catch (Exception e)
+            {
+                Logger.ErrorException($"Error adding job {jobId} to the {queue} queue.", e);
+                throw;
+            }
         }
 
         private RealmFetchedJob TryAllQueues(string[] queues, CancellationToken cancellationToken)
         {
-                using (var cancellationEvent = cancellationToken.GetCancellationEvent())
+            using (var cancellationEvent = cancellationToken.GetCancellationEvent())
+            {
+                foreach (var queue in queues)
                 {
-                    foreach (var queue in queues)
+                    var fetchedJob = TryGetEnqueuedJob(queue, cancellationToken);
+                    if (fetchedJob == null)
                     {
-                        var fetchedJob = TryGetEnqueuedJob(queue, cancellationToken);
-                        if (fetchedJob == null)
-                        {
-                            continue;
-                        }
-                        _semaphore.WaitNonBlock(queue);
-                        return fetchedJob;
+                        continue;
                     }
+                    _semaphore.WaitNonBlock(queue);
+                    return fetchedJob;
                 }
+            }
 
-                return null;
+            return null;
         }
 
         private RealmFetchedJob TryGetEnqueuedJob(string queue, CancellationToken cancellationToken)
         {
-                cancellationToken.ThrowIfCancellationRequested();
-                var timeout = DateTimeOffset.UtcNow.AddSeconds((int)_storage.Options.SlidingInvisibilityTimeout.Value.Negate().TotalSeconds);
-                RealmFetchedJob fetchedJob = null;
+            cancellationToken.ThrowIfCancellationRequested();
+            var timeout = DateTimeOffset.UtcNow.AddSeconds((int)_storage.Options.SlidingInvisibilityTimeout.Value.Negate().TotalSeconds);
+            RealmFetchedJob fetchedJob = null;
+            try
+            {
                 var realm = _storage.GetRealm();
                 realm.Write(() =>
                 {
@@ -110,7 +120,13 @@ namespace Hangfire.Realm
                         fetchedJob = new RealmFetchedJob(_storage, job.Id, job.JobId, job.Queue, fetchedAt);
                     }
                 });
-                return fetchedJob;
+            }
+            catch (Exception e)
+            {
+                Logger.ErrorException($"Error getting enqueued job from {queue} queue.", e);
+                throw;
+            }
+            return fetchedJob;
         }
     }
 
