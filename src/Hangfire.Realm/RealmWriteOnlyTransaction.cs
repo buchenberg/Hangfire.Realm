@@ -534,7 +534,7 @@ namespace Hangfire.Realm
             var realm = _storage.GetRealm();
             realm.Write(() =>
             {
-                var query = realm.All<SetDto>().Where(_ => _.Key == key);
+                var query = realm.All<SetDto>().Where(_ => _.Key.StartsWith(key));
                 realm.RemoveRange(query);
             });
             
