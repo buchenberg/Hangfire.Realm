@@ -2,13 +2,15 @@
 
 This [Hangfire](http://hangfire.io) extension adds support for using the lightweight embeddable [Realm](https://realm.io) object database.
 
-_**Warning:** This project is under active development and has not been fully tested in production. Please use responsibly. Any developer input is appreciated._
+_**Warning:** While this extension has been tested extensively in development, it has not been fully tested in production. Please use responsibly. Any developer input is appreciated._
 
 ## Installation
 
 This project is not yet released as a NuGet package. Install it by checking it out with Git or downloading it directly as a zip and adding a reference to the Hangfire.Realm project to your code.
 
 ## Usage
+
+_**Caution:** If you are using Realm for persisting other data in your application and it's running on Windows make sure you use the same Realm configuration for everything. Using seperate Realm files will result in intermittant "SetEndOfFile() failed" errors._
 
 ### .NET Core
 
