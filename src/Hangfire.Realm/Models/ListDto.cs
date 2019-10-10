@@ -14,6 +14,7 @@ namespace Hangfire.Realm.Models
         {
             Key = key;
         }
+        [PrimaryKey]
         public string Key { get; set; }
 
         public DateTimeOffset Created { get; set; } = DateTimeOffset.Now;

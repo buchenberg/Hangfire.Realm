@@ -4,7 +4,7 @@ using Realms;
 
 namespace Hangfire.Realm.Models
 {
-	internal class StateDto : RealmObject
+	public class StateDto : RealmObject
     {
 	    public string Name { get; set; }
 

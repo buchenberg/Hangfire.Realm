@@ -37,10 +37,10 @@ namespace Hangfire.Realm.Tests
         }
 
         [Test]
-        public void AcquireLock_ReturnsNullInstance()
+        public void AcquireLock_ReturnsNonNullInstance()
         {
             var @lock = _connection.AcquireDistributedLock("1", TimeSpan.FromSeconds(1));
-            Assert.Null(@lock);
+            Assert.NotNull(@lock);
         }
 
         [Test]
@@ -84,19 +84,15 @@ namespace Hangfire.Realm.Tests
         {
             var hash1 = new HashDto("some-hash");
             hash1.Fields.Add(new FieldDto("Key1","Value1"));
+            hash1.Fields.Add(new FieldDto("Key2", "Value2"));
 
-            var hash2 = new HashDto("some-hash");
-            hash2.Fields.Add(new FieldDto("Key2", "Value2"));
-
-            var hash3 = new HashDto("another-hash");
-            hash3.Fields.Add(new FieldDto("Key3", "Value3"));
+            var hash2 = new HashDto("another-hash");
+            hash2.Fields.Add(new FieldDto("Key3", "Value3"));
             var realm = _storage.GetRealm();
-
             realm.Write(() =>
             {
                 realm.Add(hash1);
                 realm.Add(hash2);
-                realm.Add(hash3);
             });
 
 
@@ -148,10 +144,10 @@ namespace Hangfire.Realm.Tests
             var hash1 = new HashDto("hash-1");
             hash1.Fields.Add(new FieldDto("field-1", "1"));
 
-            var hash2 = new HashDto("hash-1");
+            var hash2 = new HashDto("hash-2");
             hash2.Fields.Add(new FieldDto("field-2", "2"));
 
-            var hash3 = new HashDto("hash-2");
+            var hash3 = new HashDto("hash-3");
             hash3.Fields.Add(new FieldDto("field-1", "3"));                                    
 
             realm.Write(() =>
