@@ -10,7 +10,7 @@ This project is not yet released as a NuGet package. Install it by checking it o
 
 ## Usage
 
-_**Caution:** If you are using Realm for persisting other data in your application and it's running on Windows make sure you use the same Realm configuration for everything. Using seperate Realm files will result in intermittant "SetEndOfFile() failed" errors._
+_**Note:** If you are using Realm for persisting other data in your application and it's running on Windows make sure you use the same Realm configuration for everything. Using seperate Realm files will result in intermittant "SetEndOfFile() failed" errors. See https://github.com/realm/realm-dotnet/issues/1906_
 
 ### .NET Core
 
