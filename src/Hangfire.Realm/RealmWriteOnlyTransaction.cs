@@ -30,8 +30,8 @@ namespace Hangfire.Realm
             realm.Write(() => job.ExpireAt = DateTime.UtcNow.Add(expireIn));
         }
         public string CreateExpiredJob(
-            Job job, 
-            IDictionary<string, string> parameters, 
+            Job job,
+            IDictionary<string, string> parameters,
             DateTime createdAt,
             TimeSpan expireIn)
         {
@@ -59,7 +59,7 @@ namespace Hangfire.Realm
                 {
                     jobDto.Parameters.Add(new ParameterDto(param.Key, param.Value));
                 }
-                
+
                 realm.Add(jobDto);
                 jobId = jobDto.Id;
             });
@@ -78,21 +78,22 @@ namespace Hangfire.Realm
         {
             _logger.DebugFormat("Setting Hangfire job {0} state to {1}", jobId, state.Name);
             var realm = _storage.GetRealm();
-            var job = realm.Find<JobDto>(jobId);
-            if (job == null) return;
-                
-            
-            var stateData = new StateDto
-            {
-                Reason = state.Reason,
-                Name = state.Name
-            };
-            foreach (var data in state.SerializeData())
-            {
-                stateData.Data.Add(new StateDataDto(data));
-            }
             realm.Write(() =>
             {
+                var job = realm.Find<JobDto>(jobId);
+                if (job == null) return;
+
+
+                var stateData = new StateDto
+                {
+                    Reason = state.Reason,
+                    Name = state.Name
+                };
+                foreach (var data in state.SerializeData())
+                {
+                    stateData.Data.Add(new StateDataDto(data));
+                }
+
                 job.StateName = state.Name;
                 job.StateHistory.Insert(0, stateData);
             });
@@ -101,20 +102,24 @@ namespace Hangfire.Realm
         public override void AddJobState(string jobId, IState state)
         {
             var realm = _storage.GetRealm();
-            var job = realm.Find<JobDto>(jobId);
-            if (job == null) return;
-            var stateData = new StateDto
+            realm.Write(() =>
             {
-                Reason = state.Reason,
-                Name = state.Name
-            };
+                var job = realm.Find<JobDto>(jobId);
+                if (job == null) return;
+                var stateData = new StateDto
+                {
+                    Reason = state.Reason,
+                    Name = state.Name
+                };
 
-            foreach (var data in state.SerializeData())
-            {
-                stateData.Data.Add(new StateDataDto(data));
-            }
+                foreach (var data in state.SerializeData())
+                {
+                    stateData.Data.Add(new StateDataDto(data));
+                }
 
-            realm.Write(() => job.StateHistory.Insert(0, stateData));
+                job.StateHistory.Insert(0, stateData);
+            });
+
         }
 
         #region custom internal transactions
@@ -201,14 +206,15 @@ namespace Hangfire.Realm
         public override void AddToQueue(string queue, string jobId)
         {
             var realm = _storage.GetRealm();
-            realm.Write(() => realm.Add(new JobQueueDto {Queue = queue, JobId = jobId}));
+            realm.Write(() => realm.Add(new JobQueueDto { Queue = queue, JobId = jobId }));
         }
 
         public override void IncrementCounter(string key)
         {
             var realm = _storage.GetRealm();
-            
-            realm.Write(() => {
+
+            realm.Write(() =>
+            {
                 var counter = realm.Find<CounterDto>(key);
                 if (counter == null)
                 {
@@ -293,7 +299,7 @@ namespace Hangfire.Realm
                 .Where(_ => _.Key == key && _.Value == value);
                 if (set.Any()) realm.Remove(set.Single());
             });
-            
+
         }
 
         public override void InsertToList(string key, string value)
@@ -308,7 +314,7 @@ namespace Hangfire.Realm
                 }
                 list.Values.Add(value);
             });
-            
+
         }
 
         public override void RemoveFromList(string key, string value)
@@ -319,7 +325,7 @@ namespace Hangfire.Realm
                 var list = realm.Find<ListDto>(key);
                 if (list == null) return;
                 var matchingValues = list.Values.Where(_ => _ == value);
-                foreach(var match in matchingValues)
+                foreach (var match in matchingValues)
                 {
                     list.Values.Remove(match);
                 }
@@ -380,8 +386,8 @@ namespace Hangfire.Realm
                     }
                 }
             });
-            
-            
+
+
         }
 
         public override void RemoveHash(string key)
@@ -404,7 +410,7 @@ namespace Hangfire.Realm
             //These methods are self-commiting. Don't trust hangfire to close a transaction.
             return;
         }
-        
+
         // New methods to support Hangfire pro feature - batches.
 
 
@@ -423,7 +429,7 @@ namespace Hangfire.Realm
                     set.ExpireAt = expireAt;
                 }
             });
-            
+
         }
 
         public override void ExpireList(string key, TimeSpan expireIn)
@@ -522,7 +528,7 @@ namespace Hangfire.Realm
             {
                 AddToSet(key, item);
             }
-            
+
         }
 
         public override void RemoveSet(string key)
@@ -537,7 +543,7 @@ namespace Hangfire.Realm
                 var query = realm.All<SetDto>().Where(_ => _.Key.StartsWith(key));
                 realm.RemoveRange(query);
             });
-            
+
         }
 
         public override void Dispose()
