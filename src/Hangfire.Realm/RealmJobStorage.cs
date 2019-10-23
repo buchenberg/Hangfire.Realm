@@ -26,7 +26,8 @@ namespace Hangfire.Realm
 
 	    public override IStorageConnection GetConnection()
 	    {
-		    return new RealmStorageConnection(this, JobQueueSemaphore.Instance);
+            return new RealmStorageConnection(this);
+            //return new RealmStorageConnection(this, JobQueueSemaphore.Instance);
 	    }
 
         public Realms.Realm GetRealm()
