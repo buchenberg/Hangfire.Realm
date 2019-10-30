@@ -14,7 +14,7 @@ _**Note:** If you are using Realm for persisting other data in your application 
 
 ### .NET Core
 
-Please see the [Hangfire.Realm.Sample.NET.Core](https://github.com/gottscj/Hangfire.Realm/tree/master/src/Hangfire.Realm.Sample.NET.Core) project for a working example.
+Please see the [Hangfire.Realm.Sample.NET.Core](https://github.com/buchenberg/Hangfire.Realm/tree/master/src/Hangfire.Realm.Sample.NET.Core) project for a working example.
 
 ```csharp
 public static void Main()
@@ -115,7 +115,7 @@ public static void Main()
 
 ### ASP.NET Core
 
-Please see the [Hangfire.Realm.Sample.ASP.NET.Core](https://github.com/gottscj/Hangfire.Realm/tree/master/src/Hangfire.Realm.Sample.ASP.NET.Core) project for a working example.
+Please see the [Hangfire.Realm.Sample.ASP.NET.Core](https://github.com/buchenberg/Hangfire.Realm/tree/master/src/Hangfire.Realm.Sample.ASP.NET.Core) project for a working example.
 
 ```csharp
 public class Startup
@@ -180,4 +180,4 @@ The Hangfire web dashboard will be available at /hangfire.
 
 ## Issues
 
-If you have any questions or issues related to Hangfire.Realm or want to discuss new features please create a new or comment on an existing [issue](https://github.com/gottscj/Hangfire.Realm/issues).
+If you have any questions or issues related to Hangfire.Realm or want to discuss new features please create a new or comment on an existing [issue](https://github.com/buchenberg/Hangfire.Realm/issues).
