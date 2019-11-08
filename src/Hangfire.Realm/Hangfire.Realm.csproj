@@ -6,7 +6,7 @@
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageDescription>This Hangfire extension adds support for using the lightweight embeddable Realm object database.</PackageDescription>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <RepositoryUrl>https://github.com/gottscj/Hangfire.Realm</RepositoryUrl>
+    <RepositoryUrl>https://github.com/buchenberg/Hangfire.Realm</RepositoryUrl>
     <TargetFramework>netstandard2.0</TargetFramework>
     <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
