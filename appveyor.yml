@@ -2,7 +2,7 @@
 version: '1.0.{build}'
 image: Visual Studio 2019
 configuration: Release
-platform: Any CPU
+# platform: Any CPU
 nuget:
   project_feed: true
 branches:
