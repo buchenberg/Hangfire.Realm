@@ -29,12 +29,12 @@ artifacts:
   - path: 'nupkgs/Hangfire.Realm.1.0.0.nupkg'
     name: nupkg
 clone_depth: 1
-# test_script:
+test_script:
   # restore packages for our unit tests
-  # - cmd: dotnet restore ./tests/tests.csproj --verbosity m
+  - cmd: dotnet restore ./src/Hangfire.Realm.Tests/Hangfire.Realm.Tests.csproj --verbosity m
   # run the unit tests (requires changing into the test directory)
-  # - cmd: cd tests
-  # - cmd: dotnet xunit
+  - cmd: cd ./src/Hangfire.Realm.Tests
+  - cmd: dotnet test
 # on_finish :
   # any cleanup in here
 deploy: off
