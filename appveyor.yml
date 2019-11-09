@@ -16,13 +16,15 @@ before_build:
   # Display .NET Core version
   - cmd: dotnet --version
   # Display minimal restore text
-  - cmd: dotnet restore ./src/Hangfire.Realm/Hangfire.Realm.csproj --verbosity m
-build_script:
+  - cmd: dotnet restore ./src/Hangfire.Realm.sln --verbosity m
+build:
+  project: ./src/Hangfire.Realm.sln
+# build_script:
   # output will be in ./src/bin/debug/netcoreapp1.1/publish
+
+after_build:
   - cmd: dotnet publish -c Release ./src/Hangfire.Realm/Hangfire.Realm.csproj
   - cmd: dotnet pack -c Release ./src/Hangfire.Realm/Hangfire.Realm.csproj --output nupkgs
-# after_build:
-  # For once the build has completed
 artifacts:
   - path: './src/Hangfire.Realm/bin/Release/netstandard2.0/publish/'
     name: Library
