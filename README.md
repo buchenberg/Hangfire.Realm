@@ -1,14 +1,24 @@
 # Hangfire.Realm
 
 [![Build status](https://ci.appveyor.com/api/projects/status/nw6k0n6yr8ycj50g?svg=true)](https://ci.appveyor.com/project/buchenberg/hangfire-realm)
+![Nuget](https://img.shields.io/nuget/v/Hangfire.Realm)
+![Nuget](https://img.shields.io/nuget/dt/Hangfire.Realm)
+![GitHub](https://img.shields.io/github/license/buchenberg/Hangfire.Realm)
 
 This [Hangfire](http://hangfire.io) extension adds support for using the lightweight embeddable [Realm](https://realm.io) object database.
 
 _**Warning:** While this extension has been tested extensively in development, it has not been fully tested in production. Please use responsibly. Any developer input is appreciated._
 
 ## Installation
+Package Manager:
 
-This project is not yet released as a NuGet package. Install it by checking it out with Git or downloading it directly as a zip and adding a reference to the Hangfire.Realm project to your code.
+`Install-Package Hangfire.Realm -Version 1.0.0`
+
+.NET CLI:
+
+`dotnet add package Hangfire.Realm --version 1.0.0`
+
+
 
 ## Usage
 
