@@ -1,5 +1,7 @@
 # Hangfire.Realm
 
+[![Build status](https://ci.appveyor.com/api/projects/status/nw6k0n6yr8ycj50g?svg=true)](https://ci.appveyor.com/project/buchenberg/hangfire-realm)
+
 This [Hangfire](http://hangfire.io) extension adds support for using the lightweight embeddable [Realm](https://realm.io) object database.
 
 _**Warning:** While this extension has been tested extensively in development, it has not been fully tested in production. Please use responsibly. Any developer input is appreciated._
