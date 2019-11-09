@@ -2,6 +2,7 @@
 version: '1.0.{build}'
 image: Visual Studio 2019
 configuration: Release
+platform: Any CPU
 nuget:
   project_feed: true
 branches:
@@ -19,24 +20,22 @@ before_build:
   - cmd: dotnet restore ./src/Hangfire.Realm.sln --verbosity m
 build:
   project: ./src/Hangfire.Realm.sln
-# build_script:
-  # output will be in ./src/bin/debug/netcoreapp1.1/publish
-
-after_build:
-  - cmd: dotnet publish -c Release ./src/Hangfire.Realm/Hangfire.Realm.csproj
-  - cmd: dotnet pack -c Release ./src/Hangfire.Realm/Hangfire.Realm.csproj --output nupkgs
-artifacts:
-  - path: './src/Hangfire.Realm/bin/Release/netstandard2.0/publish/'
-    name: Library
-  - path: 'nupkgs/Hangfire.Realm.1.0.0.nupkg'
-    name: nupkg
+  publish_nuget: true
+# after_build:
+#   - cmd: dotnet publish -c Release ./src/Hangfire.Realm/Hangfire.Realm.csproj
+#   - cmd: dotnet pack -c Release ./src/Hangfire.Realm/Hangfire.Realm.csproj --output nupkgs
+# artifacts:
+#   - path: './src/Hangfire.Realm/bin/Release/netstandard2.0/publish/'
+#     name: Library
+#   - path: 'nupkgs/Hangfire.Realm.1.0.0.nupkg'
+#     name: nupkg
 clone_depth: 1
-test_script:
-  # restore packages for our unit tests
-  - cmd: dotnet restore ./src/Hangfire.Realm.Tests/Hangfire.Realm.Tests.csproj --verbosity m
-  # run the unit tests (requires changing into the test directory)
-  - cmd: cd ./src/Hangfire.Realm.Tests
-  - cmd: dotnet test
+# test_script:
+#   # restore packages for our unit tests
+#   - cmd: dotnet restore ./src/Hangfire.Realm.Tests/Hangfire.Realm.Tests.csproj --verbosity m
+#   # run the unit tests (requires changing into the test directory)
+#   - cmd: cd ./src/Hangfire.Realm.Tests
+#   - cmd: dotnet test
 # on_finish :
   # any cleanup in here
 deploy: off
