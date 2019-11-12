@@ -9,33 +9,12 @@ branches:
   only:
   - master
 init:
-  # Good practise, because Windows line endings are different from Unix/Linux ones
   - cmd: git config --global core.autocrlf true
-# install:
-  # Install repo specific stuff here
 before_build:
-  # Display .NET Core version
   - cmd: dotnet --version
-  # Display minimal restore text
   - cmd: dotnet restore ./src/Hangfire.Realm.sln --verbosity m
 build:
   project: ./src/Hangfire.Realm.sln
   publish_nuget: true
-# after_build:
-#   - cmd: dotnet publish -c Release ./src/Hangfire.Realm/Hangfire.Realm.csproj
-#   - cmd: dotnet pack -c Release ./src/Hangfire.Realm/Hangfire.Realm.csproj --output nupkgs
-# artifacts:
-#   - path: './src/Hangfire.Realm/bin/Release/netstandard2.0/publish/'
-#     name: Library
-#   - path: 'nupkgs/Hangfire.Realm.1.0.0.nupkg'
-#     name: nupkg
 clone_depth: 1
-# test_script:
-#   # restore packages for our unit tests
-#   - cmd: dotnet restore ./src/Hangfire.Realm.Tests/Hangfire.Realm.Tests.csproj --verbosity m
-#   # run the unit tests (requires changing into the test directory)
-#   - cmd: cd ./src/Hangfire.Realm.Tests
-#   - cmd: dotnet test
-# on_finish :
-  # any cleanup in here
 deploy: off
