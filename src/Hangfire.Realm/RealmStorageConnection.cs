@@ -18,13 +18,13 @@ namespace Hangfire.Realm
         private static readonly ILog Logger = LogProvider.For<RealmStorageConnection>();
 
         public RealmStorageConnection(
-            RealmJobStorage storage,
-            IJobQueueSemaphore jobQueueSemaphore)
+            RealmJobStorage storage)//,
+            //IJobQueueSemaphore jobQueueSemaphore)
         {
             _storage = storage ?? throw new ArgumentNullException(nameof(storage));
             _jobQueue = new RealmJobQueue(
-                storage,
-                jobQueueSemaphore ?? throw new ArgumentNullException(nameof(jobQueueSemaphore)));
+                storage);//,
+                //jobQueueSemaphore ?? throw new ArgumentNullException(nameof(jobQueueSemaphore)));
         }
 
         public override IWriteOnlyTransaction CreateWriteTransaction()
