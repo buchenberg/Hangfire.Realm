@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using Hangfire.Server;
 using Hangfire.Storage;
 using Realms;
 using Realms.Sync;
@@ -29,6 +31,14 @@ namespace Hangfire.Realm
             return new RealmStorageConnection(this);
             //return new RealmStorageConnection(this, JobQueueSemaphore.Instance);
 	    }
+
+#pragma warning disable 618
+        public override IEnumerable<IServerComponent> GetComponents()
+#pragma warning restore 618
+        {
+            yield return new ExpirationManager(this, Options.JobExpirationCheckInterval);
+           // yield return new CountersAggregator(this, _options.CountersAggregateInterval);
+        }
 
         public Realms.Realm GetRealm()
         {
