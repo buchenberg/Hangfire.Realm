@@ -35,19 +35,19 @@ namespace Hangfire.Realm
                 {
                     _logger.Debug("Removing outdated records...");
 
-                    var expiredJobRecords = realm.All<JobDto>().Where(_ => _.ExpireAt > DateTimeOffset.UtcNow);
+                    var expiredJobRecords = realm.All<JobDto>().Where(_ => _.ExpireAt < DateTimeOffset.UtcNow);
                     _logger.Debug($"Removing {expiredJobRecords.Count()} outdated job records...");
                     realm.RemoveRange(expiredJobRecords);
 
-                    var expiredListRecords = realm.All<ListDto>().Where(_ => _.ExpireAt > DateTimeOffset.UtcNow);
+                    var expiredListRecords = realm.All<ListDto>().Where(_ => _.ExpireAt < DateTimeOffset.UtcNow);
                     _logger.Debug($"Removing {expiredListRecords.Count()} outdated list records...");
                     realm.RemoveRange(expiredListRecords);
 
-                    var expiredSetRecords = realm.All<SetDto>().Where(_ => _.ExpireAt > DateTimeOffset.UtcNow);
+                    var expiredSetRecords = realm.All<SetDto>().Where(_ => _.ExpireAt < DateTimeOffset.UtcNow);
                     _logger.Debug($"Removing {expiredSetRecords.Count()} outdated set records...");
                     realm.RemoveRange(expiredSetRecords);
 
-                    var expiredHashRecords = realm.All<HashDto>().Where(_ => _.ExpireAt > DateTimeOffset.UtcNow);
+                    var expiredHashRecords = realm.All<HashDto>().Where(_ => _.ExpireAt < DateTimeOffset.UtcNow);
                     _logger.Debug($"Removing {expiredHashRecords.Count()} outdated hash records...");
                     realm.RemoveRange(expiredHashRecords);
 
