@@ -35,10 +35,6 @@ namespace Hangfire.Realm
                 {
                     _logger.Debug("Removing outdated records...");
 
-                    //var expiredCounterRecords = realm.All<CounterDto>().Where(_ => _.ExpireAt > DateTimeOffset.UtcNow);
-                    //_logger.Debug($"Removing {expiredCounterRecords.Count()} outdated counter records...");
-                    //realm.RemoveRange(expiredCounterRecords);
-
                     var expiredJobRecords = realm.All<JobDto>().Where(_ => _.ExpireAt > DateTimeOffset.UtcNow);
                     _logger.Debug($"Removing {expiredJobRecords.Count()} outdated job records...");
                     realm.RemoveRange(expiredJobRecords);
@@ -52,7 +48,7 @@ namespace Hangfire.Realm
                     realm.RemoveRange(expiredSetRecords);
 
                     var expiredHashRecords = realm.All<HashDto>().Where(_ => _.ExpireAt > DateTimeOffset.UtcNow);
-                    _logger.Debug($"Removing {expiredHashRecords.Count()} outdated counter records...");
+                    _logger.Debug($"Removing {expiredHashRecords.Count()} outdated hash records...");
                     realm.RemoveRange(expiredHashRecords);
 
                 });
