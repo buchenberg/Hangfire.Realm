@@ -27,28 +27,107 @@ namespace Hangfire.Realm.Tests
         }
 
         [Test]
-        public void RemovesOutdatedRecords()
+        public void Removes_Expired_Records()
         {
             CreateExpirationEntry(DateTimeOffset.UtcNow.AddMonths(-1));
 
             var manager = CreateManager();
             manager.Execute(_cts.Token);
-            
+
             Assert.True(IsEntryExpired());
-            
+
         }
 
         [Test]
-        public void DoesNotRemoveEntries_WithNoExpirationTimeSet()
+        public void Does_Not_Remove_Non_Expiring_Records()
         {
 
-                CreateExpirationEntry(null);
-                var manager = CreateManager();
+            CreateExpirationEntry(null);
+            var manager = CreateManager();
 
-                manager.Execute(_cts.Token);
+            manager.Execute(_cts.Token);
 
-                Assert.False(IsEntryExpired());
+            Assert.False(IsEntryExpired());
+
+        }
+
+        [Test]
+        public void Does_Not_Remove_Fresh_Records()
+        {
+
+            CreateExpirationEntry(DateTime.UtcNow.AddMonths(1));
+            var manager = CreateManager();
+
+            manager.Execute(_cts.Token);
+
+            Assert.False(IsEntryExpired());
+
+        }
+
+        [Test]
+        public void Processes_ListDto()
+        {
+            var realm = _storage.GetRealm();
             
+            realm.Write(() =>
+            {
+                realm.Add<ListDto>(new ListDto()
+                {
+                    Key = "some-test-id",
+                    ExpireAt = DateTime.UtcNow.AddMonths(-1)
+                });
+               
+            });
+            var manager = CreateManager();
+            // Act
+            manager.Execute(_cts.Token);
+            // Assert
+            Assert.AreEqual(0, realm.All<ListDto>().Where(_ => _.Key == "some-test-id").Count());
+
+        }
+
+        [Test]
+        public void Processes_HashDto()
+        {
+            var realm = _storage.GetRealm();
+
+            realm.Write(() =>
+            {
+                realm.Add<HashDto>(new HashDto()
+                {
+                    Key = "some-test-id",
+                    ExpireAt = DateTime.UtcNow.AddMonths(-1)
+                });
+
+            });
+            var manager = CreateManager();
+            // Act
+            manager.Execute(_cts.Token);
+            // Assert
+            Assert.AreEqual(0, realm.All<HashDto>().Where(_ => _.Key == "some-test-id").Count());
+
+        }
+
+        [Test]
+        public void Processes_SetDto()
+        {
+            var realm = _storage.GetRealm();
+
+            realm.Write(() =>
+            {
+                realm.Add<SetDto>(new SetDto()
+                {
+                    Key = "some-test-id",
+                    ExpireAt = DateTime.UtcNow.AddMonths(-1)
+                });
+
+            });
+            var manager = CreateManager();
+            // Act
+            manager.Execute(_cts.Token);
+            // Assert
+            Assert.AreEqual(0, realm.All<SetDto>().Where(_ => _.Key == "some-test-id").Count());
+
         }
 
         private bool IsEntryExpired()
