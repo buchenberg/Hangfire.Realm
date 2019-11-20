@@ -17,4 +17,9 @@ build:
   project: ./src/Hangfire.Realm.sln
   publish_nuget: true
 clone_depth: 1
-deploy: off
+deploy:
+  provider: NuGet
+  api_key:
+    secure: bMN9fQdhohIcTw4Es3+zxOfOjom/oMLiV5lTEq1TvFoPAWAnyBAB+d6hHr3viRDc
+  skip_symbols: false
+  artifact: /.*\.nupkg/
