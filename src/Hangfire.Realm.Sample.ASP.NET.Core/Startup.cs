@@ -31,7 +31,7 @@ namespace Hangfire.Realm.Sample.ASP.NET.Core
         {
             RealmJobStorageOptions storageOptions = new RealmJobStorageOptions
             {
-                RealmConfiguration = new RealmConfiguration(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Hangfire.Realm.Sample.NetCore.realm")),
+                RealmConfiguration = new RealmConfiguration(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Hangfire.Realm.Sample.AspNetCore.realm")),
                 QueuePollInterval = TimeSpan.FromSeconds(1),
                 SlidingInvisibilityTimeout = TimeSpan.FromSeconds(10)
             };
@@ -56,7 +56,7 @@ namespace Hangfire.Realm.Sample.ASP.NET.Core
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+        public void Configure(IApplicationBuilder app, IBackgroundJobClient backgroundJobs, IHostingEnvironment env)
         {
             if (env.IsDevelopment())
             {
@@ -68,6 +68,14 @@ namespace Hangfire.Realm.Sample.ASP.NET.Core
                 app.UseHsts();
             }
             app.UseHangfireDashboard();
+
+            //Queue a bunch of fire-and-forget jobs
+            for (var i = 0; i < 10; i++)
+            {
+                var jobNumber = i + 1;
+                backgroundJobs.Enqueue<FafJob>((_) => _.Execute(jobNumber, JobCancellationToken.Null));
+
+            }
             app.UseStaticFiles();
             app.UseHttpsRedirection();
             app.UseMvc();
