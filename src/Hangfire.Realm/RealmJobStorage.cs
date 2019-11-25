@@ -29,7 +29,6 @@ namespace Hangfire.Realm
 	    public override IStorageConnection GetConnection()
 	    {
             return new RealmStorageConnection(this);
-            //return new RealmStorageConnection(this, JobQueueSemaphore.Instance);
 	    }
 
 #pragma warning disable 618

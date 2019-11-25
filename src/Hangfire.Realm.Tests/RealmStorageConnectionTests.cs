@@ -25,7 +25,7 @@ namespace Hangfire.Realm.Tests
             {
                 RealmConfiguration = ConnectionUtils.GetRealmConfiguration()
             });
-            _connection = new RealmStorageConnection(_storage);//, JobQueueSemaphore.Instance);
+            _connection = new RealmStorageConnection(_storage);
             var realm = _storage.GetRealm();
             realm.Write(() => realm.RemoveAll());
         }

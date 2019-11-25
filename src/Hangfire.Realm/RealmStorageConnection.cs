@@ -18,13 +18,10 @@ namespace Hangfire.Realm
         private static readonly ILog Logger = LogProvider.For<RealmStorageConnection>();
 
         public RealmStorageConnection(
-            RealmJobStorage storage)//,
-            //IJobQueueSemaphore jobQueueSemaphore)
+            RealmJobStorage storage)
         {
             _storage = storage ?? throw new ArgumentNullException(nameof(storage));
-            _jobQueue = new RealmJobQueue(
-                storage);//,
-                //jobQueueSemaphore ?? throw new ArgumentNullException(nameof(jobQueueSemaphore)));
+            _jobQueue = new RealmJobQueue(storage);
         }
 
         public override IWriteOnlyTransaction CreateWriteTransaction()
@@ -150,7 +147,7 @@ namespace Hangfire.Realm
                 }
 
                 var realm = _storage.GetRealm();
-                var state = realm.Find<JobDto>(jobId).StateHistory.LastOrDefault();
+                var state = realm.Find<JobDto>(jobId).StateHistory.OrderByDescending(_ => _.Created).FirstOrDefault();
                 if (state == null)
                 {
                     return null;

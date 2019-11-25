@@ -1,5 +1,6 @@
 ﻿using Hangfire;
 using Hangfire.Logging.LogProviders;
+using Hangfire.Realm.Sample.NET.Core;
 using Realms;
 using System;
 using System.IO;
@@ -62,45 +63,45 @@ namespace Hangfire.Realm.Sample.NetCore
                 for (var i = 0; i < JobCount; i++)
                 {
                     var jobNumber = i + 1;
-                    BackgroundJob.Enqueue(() =>
-                    Console.WriteLine($"Fire-and-forget job {jobNumber}"));
+                    BackgroundJob.Enqueue<FafJob>((_) => _.Execute(jobNumber, JobCancellationToken.Null));
+
                 }
 
                 //A scheduled job that will run 1.5 minutes after being placed in queue
-                BackgroundJob.Schedule(() =>
-                Console.WriteLine("A Scheduled job."),
-                TimeSpan.FromMinutes(1.5));
+                //BackgroundJob.Schedule(() =>
+                //Console.WriteLine("A Scheduled job."),
+                //TimeSpan.FromMinutes(1.5));
 
                 //A fire-and-forget continuation job that has three steps
-                BackgroundJob.ContinueJobWith(
-                  BackgroundJob.ContinueJobWith(
-                    BackgroundJob.Enqueue(
-                         () => Console.WriteLine($"Knock knock..")),
-                           () => Console.WriteLine("Who's there?")),
-                             () => Console.WriteLine("A continuation job!"));
+                //BackgroundJob.ContinueJobWith(
+                //  BackgroundJob.ContinueJobWith(
+                //    BackgroundJob.Enqueue(
+                //         () => Console.WriteLine($"Knock knock..")),
+                //           () => Console.WriteLine("Who's there?")),
+                //             () => Console.WriteLine("A continuation job!"));
 
                 //A scheduled continuation job that has three steps
-                BackgroundJob.ContinueJobWith(
-                  BackgroundJob.ContinueJobWith(
-                    BackgroundJob.Schedule(
-                         () => Console.WriteLine($"Knock knock.."), TimeSpan.FromMinutes(2)),
-                           () => Console.WriteLine("Who's there?")),
-                             () => Console.WriteLine("A scheduled continuation job!"));
+                //BackgroundJob.ContinueJobWith(
+                //  BackgroundJob.ContinueJobWith(
+                //    BackgroundJob.Schedule(
+                //         () => Console.WriteLine($"Knock knock.."), TimeSpan.FromMinutes(2)),
+                //           () => Console.WriteLine("Who's there?")),
+                //             () => Console.WriteLine("A scheduled continuation job!"));
 
                 //A Cron based recurring job
-                RecurringJob.AddOrUpdate("recurring-job-1", () =>
-                Console.WriteLine("Recurring job 1."),
-                Cron.Minutely);
+                //RecurringJob.AddOrUpdate("recurring-job-1", () =>
+                //Console.WriteLine("Recurring job 1."),
+                //Cron.Minutely);
 
                 //Another recurring job
-                RecurringJob.AddOrUpdate("recurring-job-2", () =>
-                Console.WriteLine("Recurring job 2."),
-                Cron.Minutely);
+                //RecurringJob.AddOrUpdate("recurring-job-2", () =>
+                //Console.WriteLine("Recurring job 2."),
+                //Cron.Minutely);
 
                 //An update to the first recurring job
-                RecurringJob.AddOrUpdate("recurring-job-1", () =>
-                Console.WriteLine("Recurring job 1 (edited)."),
-                Cron.Minutely);
+                //RecurringJob.AddOrUpdate("recurring-job-1", () =>
+                //Console.WriteLine("Recurring job 1 (edited)."),
+                //Cron.Minutely);
 
                 Console.Read();
             }
