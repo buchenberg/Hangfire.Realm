@@ -1,13 +1,12 @@
-﻿using System;
+﻿using Hangfire.Annotations;
+using Hangfire.Common;
+using Hangfire.Logging;
+using Hangfire.Realm.Models;
+using Hangfire.Storage;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using Hangfire.Annotations;
-using Hangfire.Common;
-using Hangfire.Logging;
-using Hangfire.Realm.Extensions;
-using Hangfire.Realm.Models;
-using Hangfire.Storage;
 
 namespace Hangfire.Realm
 {
@@ -94,7 +93,7 @@ namespace Hangfire.Realm
                     {
                         break;
                     }
-                    cancellationToken.WaitHandle.WaitOne(pollInterval);
+                    WaitHandle.WaitAny(new WaitHandle[] { cancellationEvent.WaitHandle, NewItemInQueueEvent }, pollInterval);
                     cancellationToken.ThrowIfCancellationRequested();
                 } while (true);
             }

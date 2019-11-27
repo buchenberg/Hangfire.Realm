@@ -1,14 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using Hangfire.Common;
+﻿using Hangfire.Common;
 using Hangfire.Logging;
 using Hangfire.Realm.Models;
 using Hangfire.Server;
 using Hangfire.States;
 using Hangfire.Storage;
-using Realms;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Hangfire.Realm
 {
@@ -16,6 +14,7 @@ namespace Hangfire.Realm
     {
         private readonly RealmJobStorage _storage;
         private readonly ILog _logger;
+        private readonly Queue<Action> _afterCommitCommandQueue = new Queue<Action>();
 
         public RealmWriteOnlyTransaction(RealmJobStorage storage)
         {
@@ -207,6 +206,7 @@ namespace Hangfire.Realm
         {
             var realm = _storage.GetRealm();
             realm.Write(() => realm.Add(new JobQueueDto { Queue = queue, JobId = jobId }));
+            _afterCommitCommandQueue.Enqueue(() => RealmJobQueue.NewItemInQueueEvent.Set());
         }
 
         public override void IncrementCounter(string key)
