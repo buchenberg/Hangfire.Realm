@@ -14,7 +14,6 @@ namespace Hangfire.Realm
     {
         private readonly RealmJobStorage _storage;
         private readonly ILog _logger;
-        private readonly Queue<Action> _afterCommitCommandQueue = new Queue<Action>();
 
         public RealmWriteOnlyTransaction(RealmJobStorage storage)
         {
@@ -206,7 +205,7 @@ namespace Hangfire.Realm
         {
             var realm = _storage.GetRealm();
             realm.Write(() => realm.Add(new JobQueueDto { Queue = queue, JobId = jobId }));
-            _afterCommitCommandQueue.Enqueue(() => RealmJobQueue.NewItemInQueueEvent.Set());
+            RealmJobQueue.NewItemInQueueEvent.Set();
         }
 
         public override void IncrementCounter(string key)
