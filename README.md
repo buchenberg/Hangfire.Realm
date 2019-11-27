@@ -12,11 +12,11 @@ _**Warning:** While this extension has been tested extensively in development, i
 ## Installation
 Package Manager:
 
-`Install-Package Hangfire.Realm -Version 1.0.0`
+`Install-Package Hangfire.Realm -Version 1.0.3`
 
 .NET CLI:
 
-`dotnet add package Hangfire.Realm --version 1.0.0`
+`dotnet add package Hangfire.Realm --version 1.0.3`
 
 
 
