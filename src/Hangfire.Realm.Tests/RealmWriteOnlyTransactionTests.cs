@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Hangfire.Realm.DAL;
 using Hangfire.Realm.Models;
 using Hangfire.Realm.Tests.Utils;
 using Hangfire.States;

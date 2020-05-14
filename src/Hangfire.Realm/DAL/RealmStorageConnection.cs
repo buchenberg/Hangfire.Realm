@@ -9,7 +9,7 @@ using Hangfire.Realm.Models;
 using Hangfire.Server;
 using Hangfire.Storage;
 
-namespace Hangfire.Realm
+namespace Hangfire.Realm.DAL
 {
     internal class RealmStorageConnection : JobStorageConnection
     {
@@ -90,7 +90,7 @@ namespace Hangfire.Realm
             if (name == null) throw new ArgumentNullException(nameof(name));
             var realm = _storage.GetRealm();
             var jobDto = realm.Find<JobDto>(id);
-            var param = jobDto.Parameters.Where(_ => _.Key == name).FirstOrDefault();
+            var param = jobDto.Parameters.FirstOrDefault(_ => _.Key == name);
             return param?.Value;
 
         }
@@ -103,15 +103,15 @@ namespace Hangfire.Realm
                 throw new ArgumentNullException(nameof(jobId));
             }
             var realm = _storage.GetRealm();
-            var jobData = realm.Find<JobDto>(jobId);
+            var jobDto = realm.Find<JobDto>(jobId);
 
-            if (jobData == null)
+            if (jobDto == null)
             {
                 return null;
             }
 
-            var invocationData = SerializationHelper.Deserialize<InvocationData>(jobData.InvocationData);
-            invocationData.Arguments = jobData.Arguments;
+            var invocationData = SerializationHelper.Deserialize<InvocationData>(jobDto.InvocationData);
+            invocationData.Arguments = jobDto.Arguments;
 
             Job job = null;
             JobLoadException loadException = null;
@@ -129,8 +129,8 @@ namespace Hangfire.Realm
             return new JobData
             {
                 Job = job,
-                State = jobData.StateName,
-                CreatedAt = jobData.Created.DateTime,
+                State = jobDto.StateName,
+                CreatedAt = jobDto.Created.DateTime,
                 LoadException = loadException
             };
 
@@ -169,22 +169,32 @@ namespace Hangfire.Realm
 
         public override void AnnounceServer(string serverId, ServerContext context)
         {
+            if (serverId == null)
+            {
+                throw new ArgumentNullException(nameof(serverId));
+            }
+
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
             try
             {
-                if (serverId == null)
-                {
-                    throw new ArgumentNullException(nameof(serverId));
-                }
-
-                if (context == null)
-                {
-                    throw new ArgumentNullException(nameof(context));
-                }
-                using (var transaction = new RealmWriteOnlyTransaction(_storage))
-                {
-                    transaction.AnnounceServer(serverId, context);
-                    transaction.Commit();
-                }
+               
+                var realm = _storage.GetRealm();
+                realm.Write(() =>
+                    {
+                        var server = new ServerDto
+                        {
+                            Id = serverId,
+                            WorkerCount = context.WorkerCount,
+                            StartedAt = DateTime.UtcNow,
+                            LastHeartbeat = DateTime.UtcNow
+                        };
+                        ((List<string>)server.Queues).AddRange(context.Queues);
+                        realm.Add(server, update: true);
+                    }
+                );
             }
             catch (Exception e)
             {
@@ -193,7 +203,7 @@ namespace Hangfire.Realm
             }
 
         }
-        //TODO Write only (own thread)
+
         public override void RemoveServer(string serverId)
         {
             try
@@ -212,7 +222,7 @@ namespace Hangfire.Realm
                 throw;
             }
         }
-        //TODO Write only (own thread)
+
         public override void Heartbeat(string serverId)
         {
             try
@@ -235,7 +245,7 @@ namespace Hangfire.Realm
                 throw;
             }
         }
-        //TODO Write only (own thread)
+
         public override int RemoveTimedOutServers(TimeSpan timeOut)
         {
             try

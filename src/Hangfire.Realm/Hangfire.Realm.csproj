@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <PackageId>Hangfire.Realm</PackageId>
-    <Version>1.0.3</Version>
+    <Version>1.0.4-alpha</Version>
     <Authors>Jonas Gottschau, Greg Buchenberger</Authors>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageDescription>This Hangfire extension adds support for using the lightweight embeddable Realm object database.</PackageDescription>
@@ -11,7 +11,8 @@
     <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Hangfire.Core" Version="1.7.7" />
+    <PackageReference Include="AutoMapper" Version="9.0.0" />
+    <PackageReference Include="Hangfire.Core" Version="1.7.11" />
     <PackageReference Include="Realm" Version="4.2.0" />
   </ItemGroup>
 </Project>

@@ -9,16 +9,24 @@ namespace Hangfire.Realm
 {
     public sealed class RealmFetchedJob : IFetchedJob
     {
-        private static readonly ILog _logger = LogProvider.For<RealmFetchedJob>();
+
         private readonly object _syncRoot = new object();
         private readonly RealmJobStorage _storage;
         private readonly string _id;
         private readonly Timer _timer;
         private bool _disposed;
         private bool _removedFromQueue;
-        private bool _requeued;
+        private bool _queued;
 
-        public RealmFetchedJob(
+        public static RealmFetchedJob CreateInstance(RealmJobStorage storage, string id, string jobId, string queue, DateTimeOffset? fetchedAt)
+        {
+            return new RealmFetchedJob(storage, id, jobId, queue, fetchedAt);
+        }
+
+        private static readonly ILog Logger = LogProvider.For<RealmFetchedJob>();
+
+
+        private RealmFetchedJob(
             [NotNull] RealmJobStorage storage,
             [NotNull] string id,
             [NotNull] string jobId,
@@ -51,7 +59,7 @@ namespace Hangfire.Realm
             {
                 if (!FetchedAt.HasValue) return;
 
-                if (_requeued || _removedFromQueue) return;
+                if (_queued || _removedFromQueue) return;
 
                 try
                 {
@@ -59,24 +67,22 @@ namespace Hangfire.Realm
                     realm.Write(() =>
                     {
                         var queuedJob = realm.Find<JobQueueDto>(_id);
-                        if (queuedJob != null)
-                        {
-                            FetchedAt = DateTimeOffset.UtcNow;
-                            queuedJob.FetchedAt = FetchedAt;
-                        }
+                        if (queuedJob == null) return;
+                        FetchedAt = DateTimeOffset.UtcNow;
+                        queuedJob.FetchedAt = FetchedAt;
 
                     });
 
                     if (!FetchedAt.HasValue)
                     {
-                        _logger.Warn($"Background job identifier '{JobId}' was fetched by another worker, will not execute keep alive.");
+                        Logger.Warn($"Background job identifier '{JobId}' was fetched by another worker, will not execute keep alive.");
                     }
 
-                    _logger.Trace($"Keep-alive query for message {_id} sent");
+                    Logger.Trace($"Keep-alive query for message {_id} sent");
                 }
                 catch (Exception ex)
                 {
-                    _logger.DebugException($"Unable to execute keep-alive query for message {_id}", ex);
+                    Logger.DebugException($"Unable to execute keep-alive query for message {_id}", ex);
                 }
             }
         }
@@ -99,9 +105,9 @@ namespace Hangfire.Realm
                     {
 
                         realm.Remove(queuedJob);
-                        if (_logger.IsTraceEnabled())
+                        if (Logger.IsTraceEnabled())
                         {
-                            _logger.Trace($"Requeue job '{JobId}' from queue '{Queue}'");
+                            Logger.Trace($"Requeue job '{JobId}' from queue '{Queue}'");
                         }
 
                     }
@@ -119,22 +125,21 @@ namespace Hangfire.Realm
                 realm.Write(() =>
                      {
                          var queuedJob = realm.Find<JobQueueDto>(_id);
-                         if (queuedJob != null)
+                         if (queuedJob == null) return;
+                         var notification = new NotificationDto
                          {
-
-                             var notification = NotificationDto.JobEnqueued(Queue);
-                             queuedJob.FetchedAt = null;
-                             realm.Add<NotificationDto>(notification);
-                             if (_logger.IsTraceEnabled())
-                             {
-                                 _logger.Trace($"Requeue job '{JobId}' from queue '{Queue}'");
-                             }
-
+                             Type = NotificationType.JobEnqueued.ToString(),
+                             Value = Queue
+                         };
+                         queuedJob.FetchedAt = null;
+                         realm.Add<NotificationDto>(notification);
+                         if (Logger.IsTraceEnabled())
+                         {
+                             Logger.Trace($"Requeue job '{JobId}' from queue '{Queue}'");
                          }
                      });
                 FetchedAt = null;
-                _requeued = true;
-                _requeued = true;
+                _queued = true;
             }
         }
 
@@ -147,7 +152,7 @@ namespace Hangfire.Realm
 
             lock (_syncRoot)
             {
-                if (!_removedFromQueue && !_requeued)
+                if (!_removedFromQueue && !_queued)
                 {
                     Requeue();
                 }

@@ -23,23 +23,6 @@ namespace Hangfire.Realm
         {
             _storage = storage ?? throw new ArgumentNullException(nameof(storage));
         }
-        public void Enqueue(string queue, string jobId)
-        {
-            try
-            {
-                var realm = _storage.GetRealm();
-                realm.Write(() =>
-                {
-                    realm.Add(new JobQueueDto { Queue = queue, JobId = jobId });
-                });
-            }
-            catch (Exception e)
-            {
-                Logger.ErrorException($"Error adding job {jobId} to the {queue} queue.", e);
-                throw;
-            }
-        }
-
 
         [NotNull]
         public IFetchedJob Dequeue(string[] queues, CancellationToken cancellationToken)
@@ -69,7 +52,7 @@ namespace Hangfire.Realm
                     var realm = _storage.GetRealm();
                     realm.Write(() =>
                     {
-                        List<JobQueueDto> jobs = new List<JobQueueDto>();
+                        var jobs = new List<JobQueueDto>();
                         foreach (var queue in queues)
                         {
                             var jobsInQueue = realm.All<JobQueueDto>()
@@ -79,15 +62,13 @@ namespace Hangfire.Realm
                         }
                         var job = jobs.OrderBy(_ => _.Created).FirstOrDefault();
 
-                        if (job != null)
+                        if (job == null) return;
+                        if (Logger.IsTraceEnabled())
                         {
-                            if (Logger.IsTraceEnabled())
-                            {
-                                Logger.Debug($"Fetched job {job.JobId} with FetchedAt {job.FetchedAt.ToString()} by Thread[{Thread.CurrentThread.ManagedThreadId}]");
-                            }
-                            job.FetchedAt = DateTimeOffset.UtcNow;
-                            fetched = new RealmFetchedJob(_storage, job.Id, job.JobId, job.Queue, job.FetchedAt);
+                            Logger.Debug($"Fetched job {job.JobId} with FetchedAt {job.FetchedAt.ToString()} by Thread[{Thread.CurrentThread.ManagedThreadId}]");
                         }
+                        job.FetchedAt = DateTimeOffset.UtcNow;
+                        fetched = RealmFetchedJob.CreateInstance(_storage, job.Id, job.JobId, job.Queue, job.FetchedAt);
                     });
                     if (fetched != null)
                     {

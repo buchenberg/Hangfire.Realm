@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Hangfire.Logging;
+using Hangfire.Realm.Exceptions;
 using Hangfire.Realm.Models;
 using Hangfire.Storage;
 

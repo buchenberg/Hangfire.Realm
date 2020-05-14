@@ -1,14 +1,14 @@
-﻿using Hangfire.Common;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using Hangfire.Common;
 using Hangfire.Logging;
 using Hangfire.Realm.Models;
 using Hangfire.Server;
 using Hangfire.States;
 using Hangfire.Storage;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 
-namespace Hangfire.Realm
+namespace Hangfire.Realm.DAL
 {
     public class RealmWriteOnlyTransaction : JobStorageTransaction
     {
@@ -120,87 +120,6 @@ namespace Hangfire.Realm
 
         }
 
-        #region custom internal transactions
-        internal void SetJobParameter(string id, string name, string value)
-        {
-            if (id is null)
-            {
-                throw new ArgumentNullException(nameof(id));
-            }
-            var realm = _storage.GetRealm();
-            var jobDto = realm.Find<JobDto>(id);
-            realm.Write(() => jobDto.Parameters.Add(new ParameterDto(name, value)));
-        }
-
-        internal LockDto AddLock(string resource)
-        {
-            if (resource is null)
-            {
-                throw new ArgumentNullException(nameof(resource));
-            }
-            var realm = _storage.GetRealm();
-            var lockDto = new LockDto
-            {
-                Resource = resource,
-                ExpireAt = null
-            };
-            realm.Write(() => realm.Add(lockDto, update: true));
-            return lockDto;
-        }
-
-        internal void AnnounceServer(string serverId, ServerContext context)
-        {
-            try
-            {
-                if (serverId == null)
-                {
-                    throw new ArgumentNullException(nameof(serverId));
-                }
-
-                if (context == null)
-                {
-                    throw new ArgumentNullException(nameof(context));
-                }
-                var realm = _storage.GetRealm();
-                realm.Write(() =>
-                {
-                    var server = new ServerDto
-                    {
-                        Id = serverId,
-                        WorkerCount = context.WorkerCount,
-                        StartedAt = DateTime.UtcNow,
-                        LastHeartbeat = DateTime.UtcNow
-                    };
-                    ((List<string>)server.Queues).AddRange(context.Queues);
-                    realm.Add(server, update: true);
-                }
-                );
-            }
-            catch (Exception)
-            {
-
-                throw;
-            }
-        }
-
-        internal void SetLockExpiry(string resource, DateTimeOffset dateTimeOffset)
-        {
-            if (resource is null)
-            {
-                throw new ArgumentNullException(nameof(resource));
-            }
-
-            var realm = _storage.GetRealm();
-            realm.Write(() => realm.Add(new LockDto
-            {
-                Resource = resource,
-                ExpireAt = dateTimeOffset
-            }, update: true));
-
-        }
-
-        #endregion
-
         public override void AddToQueue(string queue, string jobId)
         {
             var realm = _storage.GetRealm();
@@ -277,9 +196,9 @@ namespace Hangfire.Realm
             var realm = _storage.GetRealm();
             realm.Write(() =>
             {
-                var set = realm.All<SetDto>()
-                .Where(_ => _.Key == key && _.Value == value)
-                .FirstOrDefault();
+                var set = realm
+                    .All<SetDto>()
+                    .FirstOrDefault(_ => _.Key == key && _.Value == value);
                 if (set == null)
                 {
                     realm.Add(new SetDto(key, value, score));
@@ -306,11 +225,7 @@ namespace Hangfire.Realm
             var realm = _storage.GetRealm();
             realm.Write(() =>
             {
-                var list = realm.Find<ListDto>(key);
-                if (list == null)
-                {
-                    list = realm.Add(new ListDto(key));
-                }
+                var list = realm.Find<ListDto>(key) ?? realm.Add(new ListDto(key));
                 list.Values.Add(value);
             });
 
