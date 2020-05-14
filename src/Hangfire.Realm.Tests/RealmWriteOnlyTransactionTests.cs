@@ -760,8 +760,20 @@ namespace Hangfire.Realm.Tests
         public void PersistSet_OfGivenKey_ClearsTheSetExpirationData()
         {
             // ARRANGE
-            var set1 = new SetDto("Set1", "value1", 0) { ExpireAt = DateTime.UtcNow };
-            var set2 = new SetDto("Set2", "value2", 0) { ExpireAt = DateTime.UtcNow };
+            var set1 = new SetDto
+            {
+                Key = "Set1", 
+                Value = "value1", 
+                Score = 0, 
+                ExpireAt = DateTime.UtcNow
+            };
+            var set2 = new SetDto
+            {
+                Key = "Set2", 
+                Value = "value2", 
+                Score = 0, 
+                ExpireAt = DateTime.UtcNow
+            };
             _realm.Write(() =>
             {
                 _realm.Add(set1);
@@ -773,10 +785,10 @@ namespace Hangfire.Realm.Tests
             _transaction.Commit();
 
             // ASSERT
-            var testSet1 = _realm.All<SetDto>().Where(_ => _.Key == "Set1" && _.Value == "value1").Single();
+            var testSet1 = _realm.All<SetDto>().Single(_ => _.Key == "Set1" && _.Value == "value1");
             Assert.Null(testSet1.ExpireAt);
 
-            var testSet2 = _realm.All<SetDto>().Where(_ => _.Key == "Set2" && _.Value == "value2").Single();
+            var testSet2 = _realm.All<SetDto>().Single(_ => _.Key == "Set2" && _.Value == "value2");
             Assert.NotNull(testSet2.ExpireAt);
         }
 
@@ -925,7 +937,7 @@ namespace Hangfire.Realm.Tests
         }
         private JobDto CreateExpiredJob(DateTimeOffset expire)
         {
-            JobDto jobDto = CreateEmptyJob();
+            var jobDto = CreateEmptyJob();
             jobDto.ExpireAt = expire;
             return jobDto;
         }

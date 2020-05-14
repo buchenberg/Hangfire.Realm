@@ -1,12 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using Hangfire.Realm.DAL;
 using Hangfire.Server;
 using Hangfire.Storage;
-using Realms;
-using Realms.Sync;
 
-namespace Hangfire.Realm
+namespace Hangfire.Realm.DAL
 {
     public class RealmJobStorage : JobStorage
     {

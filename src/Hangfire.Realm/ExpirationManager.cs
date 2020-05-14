@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Threading;
 using Hangfire.Common;
 using Hangfire.Logging;
+using Hangfire.Realm.DAL;
 using Hangfire.Realm.Models;
 using Hangfire.Server;
 using Hangfire.Storage;

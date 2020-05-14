@@ -4,6 +4,7 @@ using Hangfire.Realm.Models;
 using Hangfire.Storage;
 using System;
 using System.Threading;
+using Hangfire.Realm.DAL;
 
 namespace Hangfire.Realm
 {

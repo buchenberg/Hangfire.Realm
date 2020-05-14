@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading;
+using Hangfire.Realm.DAL;
 using Hangfire.Realm.Models;
 using Hangfire.Realm.Tests.Utils;
 using Hangfire.Storage;

@@ -1,11 +1,11 @@
-﻿using Hangfire.Common;
-using Hangfire.Logging;
+﻿using Hangfire.Logging;
 using Hangfire.Realm.Models;
 using Hangfire.States;
 using Hangfire.Storage;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 
 namespace Hangfire.Realm.DAL
 {
@@ -21,66 +21,35 @@ namespace Hangfire.Realm.DAL
         }
         public override void ExpireJob(string jobId, TimeSpan expireIn)
         {
-            var realm = _storage.GetRealm();
-            var job = realm.Find<JobDto>(jobId);
-            if (job == null) return;
-            realm.Write(() => job.ExpireAt = DateTime.UtcNow.Add(expireIn));
-        }
-        public string CreateExpiredJob(
-            Job job,
-            IDictionary<string, string> parameters,
-            DateTime createdAt,
-            TimeSpan expireIn)
-        {
-            if (job == null)
-                throw new ArgumentNullException(nameof(job));
-
-            if (parameters == null)
-                throw new ArgumentNullException(nameof(parameters));
-
-            var jobId = string.Empty;
-            var realm = _storage.GetRealm();
-            realm.Write(() =>
+            using (var realm = _storage.GetRealm())
+            using (var transaction = realm.BeginWrite())
             {
-                var invocationData = InvocationData.SerializeJob(job);
-
-                var jobDto = new JobDto
-                {
-                    InvocationData = SerializationHelper.Serialize<InvocationData>(invocationData),
-                    Arguments = invocationData.Arguments,
-                    Created = createdAt,
-                    ExpireAt = createdAt.Add(expireIn)
-                };
-
-                foreach (var param in parameters)
-                {
-                    jobDto.Parameters.Add(new ParameterDto(param.Key, param.Value));
-                }
-
-                realm.Add(jobDto);
-                jobId = jobDto.Id;
-            });
-            return jobId;
+                var job = realm.Find<JobDto>(jobId);
+                if (job == null) return;
+                job.ExpireAt = DateTime.UtcNow.Add(expireIn);
+                transaction.Commit();
+            }
         }
 
         public override void PersistJob(string jobId)
         {
-            var realm = _storage.GetRealm();
-            var job = realm.Find<JobDto>(jobId);
-            if (job == null) return;
-            realm.Write(() => job.ExpireAt = null);
-        }
-
-        public override void SetJobState(string jobId, IState state)
-        {
-            _logger.DebugFormat("Setting Hangfire job {0} state to {1}", jobId, state.Name);
-            var realm = _storage.GetRealm();
-            realm.Write(() =>
+            using (var realm = _storage.GetRealm())
+            using (var transaction = realm.BeginWrite())
             {
                 var job = realm.Find<JobDto>(jobId);
                 if (job == null) return;
-
-
+                job.ExpireAt = null;
+                transaction.Commit();
+            }
+        }
+        public override void SetJobState(string jobId, IState state)
+        {
+            _logger.DebugFormat("Setting Hangfire job {0} state to {1}", jobId, state.Name);
+            using (var realm = _storage.GetRealm())
+            using (var transaction = realm.BeginWrite())
+            {
+                var job = realm.Find<JobDto>(jobId);
+                if (job == null) return;
                 var stateData = new StateDto
                 {
                     Reason = state.Reason,
@@ -93,13 +62,13 @@ namespace Hangfire.Realm.DAL
 
                 job.StateName = state.Name;
                 job.StateHistory.Insert(0, stateData);
-            });
+                transaction.Commit();
+            };
         }
-
         public override void AddJobState(string jobId, IState state)
         {
-            var realm = _storage.GetRealm();
-            realm.Write(() =>
+            using (var realm = _storage.GetRealm())
+            using (var transaction = realm.BeginWrite())
             {
                 var job = realm.Find<JobDto>(jobId);
                 if (job == null) return;
@@ -115,74 +84,70 @@ namespace Hangfire.Realm.DAL
                 }
 
                 job.StateHistory.Insert(0, stateData);
-            });
+                transaction.Commit();
+            };
 
         }
 
         public override void AddToQueue(string queue, string jobId)
         {
-            var realm = _storage.GetRealm();
-            realm.Write(() => realm.Add(new JobQueueDto { Queue = queue, JobId = jobId }));
+            using (var realm = _storage.GetRealm())
+            using (var transaction = realm.BeginWrite())
+            {
+                realm.Add(new JobQueueDto
+                {
+                    Queue = queue,
+                    JobId = jobId
+                });
+                transaction.Commit();
+            }
             RealmJobQueue.NewItemInQueueEvent.Set();
         }
 
         public override void IncrementCounter(string key)
         {
-            var realm = _storage.GetRealm();
-
-            realm.Write(() =>
+            using (var realm = _storage.GetRealm())
+            using (var transaction = realm.BeginWrite())
             {
-                var counter = realm.Find<CounterDto>(key);
-                if (counter == null)
-                {
-                    counter = realm.Add(new CounterDto(key));
-                }
+                var counter = realm.Find<CounterDto>(key) ?? realm.Add(new CounterDto(key));
                 counter.Value.Increment();
-            });
+                transaction.Commit();
+            };
         }
 
         public override void IncrementCounter(string key, TimeSpan expireIn)
         {
-            var realm = _storage.GetRealm();
-            realm.Write(() =>
+            using (var realm = _storage.GetRealm())
+            using (var transaction = realm.BeginWrite())
             {
-                var counter = realm.Find<CounterDto>(key);
-                if (counter == null)
-                {
-                    counter = realm.Add(new CounterDto(key));
-                }
+                var counter = realm.Find<CounterDto>(key) ?? realm.Add(new CounterDto(key));
                 counter.ExpireAt = DateTimeOffset.UtcNow.Add(expireIn);
                 counter.Value.Increment();
-            });
+                transaction.Commit();
+            };
         }
 
         public override void DecrementCounter(string key)
         {
-            var realm = _storage.GetRealm();
-            realm.Write(() =>
+            using (var realm = _storage.GetRealm())
+            using (var transaction = realm.BeginWrite())
             {
-                var counter = realm.Find<CounterDto>(key);
-                if (counter == null)
-                {
-                    counter = realm.Add(new CounterDto(key));
-                }
+                var counter = realm.Find<CounterDto>(key) ?? realm.Add(new CounterDto(key));
                 counter.Value.Decrement();
-            });
+                transaction.Commit();
+            };
         }
 
         public override void DecrementCounter(string key, TimeSpan expireIn)
         {
-            var realm = _storage.GetRealm();
-            realm.Write(() =>
+            using (var realm = _storage.GetRealm())
+            using (var transaction = realm.BeginWrite())
             {
-                var counter = realm.Find<CounterDto>(key);
-                if (counter == null)
-                {
-                    counter = realm.Add(new CounterDto(key));
-                }
+                var counter = realm.Find<CounterDto>(key) ?? realm.Add(new CounterDto(key));
                 counter.ExpireAt = DateTimeOffset.UtcNow.Add(expireIn);
                 counter.Value.Decrement();
-            });
+                transaction.Commit();
+            };
         }
 
         public override void AddToSet(string key, string value)
@@ -192,115 +157,107 @@ namespace Hangfire.Realm.DAL
 
         public override void AddToSet(string key, string value, double score)
         {
-            var realm = _storage.GetRealm();
-            realm.Write(() =>
+            using (var realm = _storage.GetRealm())
+            using (var transaction = realm.BeginWrite())
             {
                 var set = realm
                     .All<SetDto>()
-                    .FirstOrDefault(_ => _.Key == key && _.Value == value);
-                if (set == null)
-                {
-                    realm.Add(new SetDto(key, value, score));
-                    return;
-                }
+                    .SingleOrDefault(_ => _.Key == key && _.Value == value) ?? realm.Add(new SetDto()
+                    {
+                        Key = key,
+                        Value = value
+                    });
                 set.Score = score;
-            });
+                transaction.Commit();
+            };
         }
 
         public override void RemoveFromSet(string key, string value)
         {
-            var realm = _storage.GetRealm();
-            realm.Write(() =>
+            using (var realm = _storage.GetRealm())
+            using (var transaction = realm.BeginWrite())
             {
-                var set = realm.All<SetDto>()
-                .Where(_ => _.Key == key && _.Value == value);
-                if (set.Any()) realm.Remove(set.Single());
-            });
+                var set = realm
+                    .All<SetDto>()
+                    .SingleOrDefault(_ => _.Key == key && _.Value == value);
+                if (set == null) return;
+                realm.Remove(set);
+                transaction.Commit();
+            };
 
         }
-
         public override void InsertToList(string key, string value)
         {
-            var realm = _storage.GetRealm();
-            realm.Write(() =>
+            using (var realm = _storage.GetRealm())
+            using (var transaction = realm.BeginWrite())
             {
                 var list = realm.Find<ListDto>(key) ?? realm.Add(new ListDto(key));
                 list.Values.Add(value);
-            });
+                transaction.Commit();
+            }
 
         }
-
         public override void RemoveFromList(string key, string value)
         {
-            var realm = _storage.GetRealm();
-            realm.Write(() =>
+            using (var realm = _storage.GetRealm())
+            using (var transaction = realm.BeginWrite())
             {
                 var list = realm.Find<ListDto>(key);
                 if (list == null) return;
-                var matchingValues = list.Values.Where(_ => _ == value);
+
+                var matchingValues = list.Values.Where(_ => _ == value).ToArray();
+                if (!matchingValues.Any()) return;
+
                 foreach (var match in matchingValues)
                 {
                     list.Values.Remove(match);
                 }
-            });
-        }
+                transaction.Commit();
 
+            }
+        }
         public override void TrimList(string key, int keepStartingFrom, int keepEndingAt)
         {
-            var realm = _storage.GetRealm();
-            realm.Write(() =>
+            using (var realm = _storage.GetRealm())
+            using (var transaction = realm.BeginWrite())
             {
                 var list = realm.Find<ListDto>(key);
                 if (list == null) return;
                 //delete from cte where row_num not between @start and @end";
-                for (int i = list.Values.Count - 1; i >= 0; i--)
+                for (var i = list.Values.Count - 1; i >= 0; i--)
                 {
                     if (i < keepStartingFrom || i > keepEndingAt)
                     {
                         list.Values.RemoveAt(i);
                     }
                 }
-            });
+                transaction.Commit();
+            }
         }
 
-        //TODO: This is painfully awkward...
         public override void SetRangeInHash(string key, IEnumerable<KeyValuePair<string, string>> keyValuePairs)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
             if (keyValuePairs == null) throw new ArgumentNullException(nameof(keyValuePairs));
-            var realm = _storage.GetRealm();
-            realm.Write(() =>
+            var valuePairs = keyValuePairs as KeyValuePair<string, string>[] ?? keyValuePairs.ToArray();
+            using (var realm = _storage.GetRealm())
+            using (var transaction = realm.BeginWrite())
             {
-                var persistedHash = realm.Find<HashDto>(key);
-                if (persistedHash == null)
+                var hash = realm.Find<HashDto>(key) ?? realm.Add(new HashDto(key));
+                foreach (var pair in valuePairs)
                 {
-                    //simple insert of new hash
-                    var hash = new HashDto(key);
-                    foreach (var pair in keyValuePairs)
+                    var matchingField = hash.Fields.SingleOrDefault(_ => _.Key == pair.Key);
+                    if (matchingField != null)
+                    {
+                        matchingField.Value = pair.Value;
+                    }
+                    else
                     {
                         hash.Fields.Add(new FieldDto(pair.Key, pair.Value));
                     }
-                    realm.Add(hash);
                 }
-                else
-                {
-                    //field updates
-                    foreach (var pair in keyValuePairs)
-                    {
-                        var matchingFields = persistedHash.Fields.Where(_ => _.Key == pair.Key);
-                        if (matchingFields.Any())
-                        {
-                            matchingFields.Single().Value = pair.Value;
-                        }
-                        else
-                        {
-                            persistedHash.Fields.Add(new FieldDto(pair.Key, pair.Value));
-                        }
-                    }
-                }
-            });
-
-
+                transaction.Commit();
+            }
         }
 
         public override void RemoveHash(string key)
@@ -309,13 +266,14 @@ namespace Hangfire.Realm.DAL
             {
                 throw new ArgumentNullException(nameof(key));
             }
-            var realm = _storage.GetRealm();
-            realm.Write(() =>
+            using (var realm = _storage.GetRealm())
+            using (var transaction = realm.BeginWrite())
             {
                 var hash = realm.Find<HashDto>(key);
                 if (hash == null) return;
                 realm.Remove(hash);
-            });
+                transaction.Commit();
+            }
         }
 
         public override void Commit()
@@ -334,14 +292,17 @@ namespace Hangfire.Realm.DAL
                 throw new ArgumentNullException(nameof(key));
             }
             var expireAt = DateTimeOffset.UtcNow.Add(expireIn);
-            var realm = _storage.GetRealm();
-            realm.Write(() =>
+            using (var realm = _storage.GetRealm())
+            using (var transaction = realm.BeginWrite())
             {
-                foreach (var set in realm.All<SetDto>().Where(_ => _.Key == key))
+                var setDtos = realm.All<SetDto>().Where(_ => _.Key == key);
+                if (!setDtos.Any()) return;
+                foreach (var set in setDtos)
                 {
                     set.ExpireAt = expireAt;
                 }
-            });
+                transaction.Commit();
+            }
 
         }
 
@@ -352,14 +313,17 @@ namespace Hangfire.Realm.DAL
                 throw new ArgumentNullException(nameof(key));
             }
             var expireAt = DateTimeOffset.UtcNow.Add(expireIn);
-            var realm = _storage.GetRealm();
-            realm.Write(() =>
+            using (var realm = _storage.GetRealm())
+            using (var transaction = realm.BeginWrite())
             {
-                foreach (var list in realm.All<ListDto>().Where(_ => _.Key == key))
+                var listDtos = realm.All<ListDto>().Where(_ => _.Key == key);
+                if (!listDtos.Any()) return;
+                foreach (var list in listDtos)
                 {
                     list.ExpireAt = expireAt;
                 }
-            });
+                transaction.Commit();
+            }
         }
 
         public override void ExpireHash(string key, TimeSpan expireIn)
@@ -368,13 +332,14 @@ namespace Hangfire.Realm.DAL
             {
                 throw new ArgumentNullException(nameof(key));
             }
-            var realm = _storage.GetRealm();
-            realm.Write(() =>
+            using (var realm = _storage.GetRealm())
+            using (var transaction = realm.BeginWrite())
             {
                 var hash = realm.Find<HashDto>(key);
                 if (hash == null) return;
                 hash.ExpireAt = DateTimeOffset.UtcNow.Add(expireIn);
-            });
+                transaction.Commit();
+            }
         }
 
         public override void PersistSet(string key)
@@ -383,14 +348,17 @@ namespace Hangfire.Realm.DAL
             {
                 throw new ArgumentNullException(nameof(key));
             }
-            var realm = _storage.GetRealm();
-            realm.Write(() =>
+            using (var realm = _storage.GetRealm())
+            using (var transaction = realm.BeginWrite())
             {
-                foreach (var set in realm.All<SetDto>().Where(_ => _.Key == key))
+                var setDtos = realm.All<SetDto>().Where(_ => _.Key == key);
+                if (!setDtos.Any()) return;
+                foreach (var set in setDtos)
                 {
                     set.ExpireAt = null;
                 }
-            });
+                transaction.Commit();
+            }
         }
 
         public override void PersistList(string key)
@@ -399,14 +367,17 @@ namespace Hangfire.Realm.DAL
             {
                 throw new ArgumentNullException(nameof(key));
             }
-            var realm = _storage.GetRealm();
-            realm.Write(() =>
+            using (var realm = _storage.GetRealm())
+            using (var transaction = realm.BeginWrite())
             {
-                foreach (var list in realm.All<ListDto>().Where(_ => _.Key == key))
+                var lists = realm.All<ListDto>().Where(_ => _.Key == key);
+                if (!lists.Any()) return;
+                foreach (var list in lists)
                 {
                     list.ExpireAt = null;
                 }
-            });
+                transaction.Commit();
+            }
 
         }
 
@@ -416,32 +387,24 @@ namespace Hangfire.Realm.DAL
             {
                 throw new ArgumentNullException(nameof(key));
             }
-            var realm = _storage.GetRealm();
-            realm.Write(() =>
+            using (var realm = _storage.GetRealm())
+            using (var transaction = realm.BeginWrite())
             {
                 var hash = realm.Find<HashDto>(key);
                 if (hash == null) return;
                 hash.ExpireAt = null;
-            });
+                transaction.Commit();
+            }
         }
 
         public override void AddRangeToSet(string key, IList<string> items)
         {
-            if (key == null)
-            {
-                throw new ArgumentNullException(nameof(key));
-            }
-
-            if (items == null)
-            {
-                throw new ArgumentNullException(nameof(items));
-            }
-
+            if (key == null) throw new ArgumentNullException(nameof(key));
+            if (items == null) throw new ArgumentNullException(nameof(items));
             foreach (var item in items)
             {
                 AddToSet(key, item);
             }
-
         }
 
         public override void RemoveSet(string key)
@@ -450,20 +413,20 @@ namespace Hangfire.Realm.DAL
             {
                 throw new ArgumentNullException(nameof(key));
             }
-            var realm = _storage.GetRealm();
-            realm.Write(() =>
+            using (var realm = _storage.GetRealm())
+            using (var transaction = realm.BeginWrite())
             {
-                var query = realm.All<SetDto>().Where(_ => _.Key.StartsWith(key));
-                realm.RemoveRange(query);
-            });
+                var sets = realm.All<SetDto>().Where(_ => _.Key.StartsWith(key));
+                if (!sets.Any()) return;
+                realm.RemoveRange(sets);
+                transaction.Commit();
+            }
 
         }
 
         public override void Dispose()
         {
             base.Dispose();
-            //_transaction?.Dispose();
-            //_realm?.Dispose();
         }
     }
 }

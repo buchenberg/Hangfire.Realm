@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using Hangfire.Realm.DAL;
 
 namespace Hangfire.Realm
 {

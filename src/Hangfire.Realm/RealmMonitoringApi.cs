@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Hangfire.Common;
+using Hangfire.Realm.DAL;
 using Hangfire.Realm.Extensions;
 using Hangfire.Realm.Models;
 using Hangfire.States;
