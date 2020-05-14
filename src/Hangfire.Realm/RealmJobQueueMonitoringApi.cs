@@ -1,11 +1,10 @@
 ﻿using Hangfire.Annotations;
+using Hangfire.Realm.DAL;
 using Hangfire.Realm.Models;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Text;
-using Hangfire.Realm.DAL;
 
 namespace Hangfire.Realm
 {
@@ -27,17 +26,19 @@ namespace Hangfire.Realm
         {
             lock (_cacheLock)
             {
-                if (_queuesCache.Count == 0 || _cacheUpdated.Elapsed > QueuesCacheTimeout)
+                if (_queuesCache.Count != 0 && _cacheUpdated.Elapsed <= QueuesCacheTimeout)
+                    return _queuesCache.ToList();
+                using (var realm = _storage.GetRealm())
                 {
-                    var realm = _storage.GetRealm();
                     _queuesCache = realm.All<JobQueueDto>()
                         .Select(q => q.Queue)
                         .Distinct()
                         .ToList();
-                    _cacheUpdated = Stopwatch.StartNew();            
                 }
+                    
+                _cacheUpdated = Stopwatch.StartNew();
 
-                return _queuesCache.ToList();
+                return _queuesCache;
             }
         }
 
