@@ -1,12 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using Hangfire.Common;
+﻿using Hangfire.Common;
 using Hangfire.Logging;
 using Hangfire.Realm.Models;
-using Hangfire.Server;
 using Hangfire.States;
 using Hangfire.Storage;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Hangfire.Realm.DAL
 {
