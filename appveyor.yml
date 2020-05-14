@@ -8,6 +8,7 @@ nuget:
 branches:
   only:
   - master
+  - buchenberg/develop
 init:
   - cmd: git config --global core.autocrlf true
 before_build:
