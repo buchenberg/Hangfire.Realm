@@ -31,17 +31,16 @@ namespace Hangfire.Realm.DAL
             return new RealmStorageConnection(this);
 	    }
 
-#pragma warning disable 618
+
         public override IEnumerable<IServerComponent> GetComponents()
-#pragma warning restore 618
         {
             yield return new ExpirationManager(this, Options.JobExpirationCheckInterval);
-           // yield return new CountersAggregator(this, _options.CountersAggregateInterval);
+            // yield return new CountersAggregator(this, _options.CountersAggregateInterval);
         }
 
         public Realms.Realm GetRealm()
         {
-            lock (LockObject)
+            lock (RealmJobStorage.LockObject)
             {
                 return Realms.Realm.GetInstance(Options.RealmConfiguration);
             }

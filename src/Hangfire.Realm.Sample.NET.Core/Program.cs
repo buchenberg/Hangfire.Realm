@@ -27,16 +27,17 @@ namespace Hangfire.Realm.Sample.NET.Core
                     // Compact if the file is over 100MB in size and less than 50% 'used'
                     var oneHundredMB = (ulong)(100 * 1024 * 1024);
                     return totalBytes > oneHundredMB && (double)usedBytes / totalBytes < 0.5;
-                }
+                },
+                //DisableGlobalLocks = true
             };
 
             //Hangfire.Realm storage options. 
             RealmJobStorageOptions storageOptions = new RealmJobStorageOptions
             {
                 RealmConfiguration = realmConfiguration, //Required.
-                //QueuePollInterval = TimeSpan.FromSeconds(1), //Optional. Defaults to TimeSpan.FromSeconds(15)
+                QueuePollInterval = TimeSpan.FromSeconds(1), //Optional. Defaults to TimeSpan.FromSeconds(15)
                 //SlidingInvisibilityTimeout = TimeSpan.FromSeconds(10), //Optional. Defaults to TimeSpan.FromMinutes(10)
-                //JobExpirationCheckInterval = TimeSpan.FromMinutes(1) //Optional. Defaults to TimeSpan.FromMinutes(30)
+                JobExpirationCheckInterval = TimeSpan.FromMinutes(1) //Optional. Defaults to TimeSpan.FromMinutes(30)
             };
 
             //Standard Hangfire server options. 
@@ -47,7 +48,8 @@ namespace Hangfire.Realm.Sample.NET.Core
                 ServerTimeout = TimeSpan.FromMinutes(10),
                 HeartbeatInterval = TimeSpan.FromSeconds(60),
                 ServerCheckInterval = TimeSpan.FromSeconds(10),
-                SchedulePollingInterval = TimeSpan.FromMilliseconds(int.MaxValue) //This is as high as you can go
+                SchedulePollingInterval = TimeSpan.FromMilliseconds(int.MaxValue), //This is as high as you can go
+
             };
 
             //Hangfire global configuration

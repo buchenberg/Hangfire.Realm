@@ -41,7 +41,7 @@ namespace Hangfire.Realm
 
             var pollInterval = _storage.Options.QueuePollInterval > TimeSpan.Zero
                 ? _storage.Options.QueuePollInterval
-                : TimeSpan.FromSeconds(1);
+                : TimeSpan.FromSeconds(15);
             var timeout = DateTimeOffset.UtcNow.AddSeconds((int)_storage.Options.SlidingInvisibilityTimeout.Value.Negate().TotalSeconds);
             RealmFetchedJob fetched = null;
 
@@ -79,9 +79,6 @@ namespace Hangfire.Realm
                         break;
                     }
                 }
-
-
-                    
                 WaitHandle.WaitAny(new WaitHandle[] { cancellationEvent.WaitHandle, NewItemInQueueEvent }, pollInterval);
                 cancellationToken.ThrowIfCancellationRequested();
             } while (true);

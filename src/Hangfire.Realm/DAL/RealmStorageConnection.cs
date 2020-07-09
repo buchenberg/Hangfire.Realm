@@ -1,45 +1,40 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Hangfire.Annotations;
+﻿using Hangfire.Annotations;
 using Hangfire.Common;
 using Hangfire.Logging;
 using Hangfire.Realm.Models;
 using Hangfire.Server;
 using Hangfire.Storage;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
 
 namespace Hangfire.Realm.DAL
 {
-    internal class RealmStorageConnection : JobStorageConnection
+    internal sealed class RealmStorageConnection : JobStorageConnection
     {
         private readonly RealmJobStorage _storage;
         private readonly RealmJobQueue _jobQueue;
-        private static readonly ILog Logger = LogProvider.For<RealmStorageConnection>();
-        private static readonly object LockObject = new object();
+        private readonly ILog _logger;
+        private readonly object _lockObject;
 
         public RealmStorageConnection(
             RealmJobStorage storage)
         {
+            _logger = LogProvider.For<RealmStorageConnection>();
             _storage = storage ?? throw new ArgumentNullException(nameof(storage));
             _jobQueue = new RealmJobQueue(storage);
+            _lockObject = new object();
         }
-
         public override IWriteOnlyTransaction CreateWriteTransaction()
         {
-            lock (LockObject)
+            lock (_lockObject)
             {
                 return new RealmWriteOnlyTransaction(_storage);
             }
 
         }
-
-        public override IDisposable AcquireDistributedLock(string resource, TimeSpan timeout)
-        {
-
-            return new RealmDistributedLock(resource, timeout, _storage);
-        }
+        public override IDisposable AcquireDistributedLock(string resource, TimeSpan timeout) => null;
 
         public override string CreateExpiredJob(Job job, IDictionary<string, string> parameters, DateTime createdAt, TimeSpan expireIn)
         {
@@ -80,8 +75,6 @@ namespace Hangfire.Realm.DAL
             return _jobQueue.Dequeue(queues, cancellationToken);
 
         }
-
-
         public override void SetJobParameter(string id, string name, string value)
         {
             if (id == null) throw new ArgumentNullException(nameof(id));
@@ -107,7 +100,7 @@ namespace Hangfire.Realm.DAL
             }
             catch (Exception e)
             {
-                Logger.ErrorException($"Error setting job parameter.", e);
+                _logger.ErrorException($"Error setting job parameter.", e);
                 throw;
             }
         }
@@ -150,7 +143,7 @@ namespace Hangfire.Realm.DAL
             }
             catch (JobLoadException ex)
             {
-                Logger.WarnException($"Deserializing job {jobId} has failed.", ex);
+                _logger.WarnException($"Deserializing job {jobId} has failed.", ex);
                 loadException = ex;
             }
 
@@ -190,7 +183,7 @@ namespace Hangfire.Realm.DAL
             }
             catch (Exception e)
             {
-                Logger.ErrorException($"Error getting state data for job {jobId}.", e);
+                _logger.ErrorException($"Error getting state data for job {jobId}.", e);
                 throw;
             }
         }
@@ -223,7 +216,7 @@ namespace Hangfire.Realm.DAL
             }
             catch (Exception e)
             {
-                Logger.ErrorException($"Error announcing {serverId}.", e);
+                _logger.ErrorException($"Error announcing {serverId}.", e);
                 throw;
             }
 
@@ -242,7 +235,7 @@ namespace Hangfire.Realm.DAL
             }
             catch (Exception e)
             {
-                Logger.ErrorException($"Error removing server {serverId}.", e);
+                _logger.ErrorException($"Error removing server {serverId}.", e);
                 throw;
             }
         }
@@ -264,7 +257,7 @@ namespace Hangfire.Realm.DAL
             }
             catch (Exception e)
             {
-                Logger.ErrorException($"Error sending heartbeat for server {serverId}.", e);
+                _logger.ErrorException($"Error sending heartbeat for server {serverId}.", e);
                 throw;
             }
         }
@@ -291,7 +284,7 @@ namespace Hangfire.Realm.DAL
             }
             catch (Exception e)
             {
-                Logger.ErrorException($"Error removing timed out servers.", e);
+                _logger.ErrorException($"Error removing timed out servers.", e);
                 throw;
             }
         }

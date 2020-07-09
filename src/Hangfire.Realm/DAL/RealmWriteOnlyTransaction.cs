@@ -12,32 +12,34 @@ namespace Hangfire.Realm.DAL
     public sealed class RealmWriteOnlyTransaction : JobStorageTransaction
     {
         private readonly ILog _logger;
-        //private static SemaphoreSlim _semaphore;
-        //private static readonly object _lockObject = new object();
-        //private readonly Queue<Action<HangfireDbContext>> _commandQueue = new Queue<Action<HangfireDbContext>>();
         private readonly Realms.Realm _realm;
         private readonly Transaction _transaction;
 
         public RealmWriteOnlyTransaction(RealmJobStorage storage)
         {
-            _logger = LogProvider.For<RealmStorageConnection>();
+            _logger = LogProvider.For<RealmWriteOnlyTransaction>();
             _realm = storage.GetRealm();
             _transaction = _realm.BeginWrite();
-           //_semaphore = new SemaphoreSlim(0, 1);
         }
 
         public override void Commit()
         {
-            //lock (_lockObject)
-            //{
+            try
+            {
                 _transaction.Commit();
-                //_realm.Refresh();
-            //}
-
-            //_semaphore.Wait();
-            //_transaction.Commit();
-            //_semaphore.Release();
-            return;
+            }
+            catch (Exception e)
+            {
+                _logger.Error($"Error occured committing write transaction. {e.Message}");
+                _transaction.Rollback();
+                throw;
+            }
+        }
+        public override void Dispose()
+        {
+            _transaction.Dispose();
+            _realm.Dispose();
+            base.Dispose();
         }
         public override void ExpireJob(string jobId, TimeSpan expireIn)
         {
@@ -54,7 +56,7 @@ namespace Hangfire.Realm.DAL
         }
         public override void SetJobState(string jobId, IState state)
         {
-            _logger.DebugFormat("Setting Hangfire job {0} state to {1}", jobId, state.Name);
+            //_logger.TraceFormat("Setting Hangfire job {0} state to {1}", jobId, state.Name);
 
             var job = _realm.Find<JobDto>(jobId);
             if (job == null) return;
@@ -332,13 +334,7 @@ namespace Hangfire.Realm.DAL
 
         }
 
-        public override void Dispose()
-        {
-            _transaction.Dispose();
-            _realm.Dispose();
-            //_semaphore.Dispose();
-            base.Dispose();
-        }
+       
 
     }
 }
