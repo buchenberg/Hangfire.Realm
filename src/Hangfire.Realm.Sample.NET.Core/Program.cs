@@ -28,7 +28,6 @@ namespace Hangfire.Realm.Sample.NET.Core
                     var oneHundredMB = (ulong)(100 * 1024 * 1024);
                     return totalBytes > oneHundredMB && (double)usedBytes / totalBytes < 0.5;
                 },
-                //DisableGlobalLocks = true
             };
 
             //Hangfire.Realm storage options. 
