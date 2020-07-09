@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Hangfire.Server;
 using Hangfire.Storage;
 
@@ -7,6 +8,7 @@ namespace Hangfire.Realm.DAL
 {
     public class RealmJobStorage : JobStorage
     {
+        private static readonly object LockObject = new object();
         internal TimeSpan? SlidingInvisibilityTimeout => Options.SlidingInvisibilityTimeout;
         internal TimeSpan? DistributedLockLifetime => Options.DistributedLockLifetime;
 
@@ -39,8 +41,12 @@ namespace Hangfire.Realm.DAL
 
         public Realms.Realm GetRealm()
         {
-            return Realms.Realm.GetInstance(Options.RealmConfiguration);
+            lock (LockObject)
+            {
+                return Realms.Realm.GetInstance(Options.RealmConfiguration);
+            }
         }
+
 
     }
 }

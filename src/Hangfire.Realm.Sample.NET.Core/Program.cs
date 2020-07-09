@@ -1,15 +1,14 @@
-﻿using Hangfire;
-using Hangfire.Logging.LogProviders;
-using Hangfire.Realm.Sample.NET.Core;
-using Realms;
-using System;
+﻿using System;
 using System.IO;
+using System.Threading;
+using Hangfire.Logging.LogProviders;
+using Realms;
 
-namespace Hangfire.Realm.Sample.NetCore
+namespace Hangfire.Realm.Sample.NET.Core
 {
     public class Program
     {
-        private const int JobCount = 25;
+        private const int JobCount = 200;
 
 
         public static void Main()
@@ -18,6 +17,7 @@ namespace Hangfire.Realm.Sample.NetCore
             string dbPath = Path.Combine(
                         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                         "Hangfire.Realm.Sample.NetCore.realm");
+            Console.WriteLine($"Using database {dbPath}");
 
             //A standard Realm configuration.
             RealmConfiguration realmConfiguration = new RealmConfiguration(dbPath)
@@ -34,20 +34,20 @@ namespace Hangfire.Realm.Sample.NetCore
             RealmJobStorageOptions storageOptions = new RealmJobStorageOptions
             {
                 RealmConfiguration = realmConfiguration, //Required.
-                QueuePollInterval = TimeSpan.FromSeconds(1), //Optional. Defaults to TimeSpan.FromSeconds(15)
-                SlidingInvisibilityTimeout = TimeSpan.FromSeconds(10), //Optional. Defaults to TimeSpan.FromMinutes(10)
-                JobExpirationCheckInterval = TimeSpan.FromMinutes(1) //Optional. Defaults to TimeSpan.FromMinutes(30)
+                //QueuePollInterval = TimeSpan.FromSeconds(1), //Optional. Defaults to TimeSpan.FromSeconds(15)
+                //SlidingInvisibilityTimeout = TimeSpan.FromSeconds(10), //Optional. Defaults to TimeSpan.FromMinutes(10)
+                //JobExpirationCheckInterval = TimeSpan.FromMinutes(1) //Optional. Defaults to TimeSpan.FromMinutes(30)
             };
 
             //Standard Hangfire server options. 
             BackgroundJobServerOptions serverOptions = new BackgroundJobServerOptions()
             {
                 WorkerCount = 10,
-                Queues = new[] { "default", "critical" },
+                Queues = new[] { "default"},
                 ServerTimeout = TimeSpan.FromMinutes(10),
-                HeartbeatInterval = TimeSpan.FromSeconds(30),
+                HeartbeatInterval = TimeSpan.FromSeconds(60),
                 ServerCheckInterval = TimeSpan.FromSeconds(10),
-                SchedulePollingInterval = TimeSpan.FromSeconds(10)
+                SchedulePollingInterval = TimeSpan.FromMilliseconds(int.MaxValue) //This is as high as you can go
             };
 
             //Hangfire global configuration
@@ -63,7 +63,7 @@ namespace Hangfire.Realm.Sample.NetCore
                 for (var i = 0; i < JobCount; i++)
                 {
                     var jobNumber = i + 1;
-                    BackgroundJob.Enqueue<FafJob>((_) => _.Execute(jobNumber, JobCancellationToken.Null));
+                    BackgroundJob.Enqueue<FafJob>((_) => _.Execute(jobNumber, CancellationToken.None));
 
                 }
 

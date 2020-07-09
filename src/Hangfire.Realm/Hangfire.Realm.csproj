@@ -9,10 +9,11 @@
     <RepositoryUrl>https://github.com/buchenberg/Hangfire.Realm</RepositoryUrl>
     <TargetFramework>netstandard2.0</TargetFramework>
     <Platforms>AnyCPU;x64</Platforms>
+    <LangVersion>8</LangVersion>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="AutoMapper" Version="9.0.0" />
+    <PackageReference Include="AutoMapper" Version="10.0.0" />
     <PackageReference Include="Hangfire.Core" Version="1.7.11" />
-    <PackageReference Include="Realm" Version="4.2.0" />
+    <PackageReference Include="Realm" Version="4.3.0" />
   </ItemGroup>
 </Project>
