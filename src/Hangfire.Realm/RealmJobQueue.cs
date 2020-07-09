@@ -45,48 +45,47 @@ namespace Hangfire.Realm
             var timeout = DateTimeOffset.UtcNow.AddSeconds((int)_storage.Options.SlidingInvisibilityTimeout.Value.Negate().TotalSeconds);
             RealmFetchedJob fetched = null;
 
-            using (var cancellationEvent = cancellationToken.GetCancellationEvent())
+            using var cancellationEvent = cancellationToken.GetCancellationEvent();
+            do
             {
-                do
+                cancellationToken.ThrowIfCancellationRequested();
+                using (var realm = _storage.GetRealm())
+                using (var transaction = realm.BeginWrite())
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    using (var realm = _storage.GetRealm())
-                    using (var transaction = realm.BeginWrite())
+
+                    var jobs = new List<JobQueueDto>();
+                    foreach (var queue in queues)
                     {
-
-                        var jobs = new List<JobQueueDto>();
-                        foreach (var queue in queues)
-                        {
-                            var jobsInQueue = realm.All<JobQueueDto>()
-                                .Where(_ => (_.FetchedAt == null || _.FetchedAt < timeout))
-                                .Where(_ => _.Queue == queue);
-                            jobs.AddRange(jobsInQueue);
-                        }
-                        var job = jobs.OrderBy(_ => _.Created).FirstOrDefault();
-
-                        if (job != null)
-                        {
-                            if (Logger.IsTraceEnabled())
-                            {
-                                Logger.Debug($"Fetched job {job.JobId} with FetchedAt {job.FetchedAt.ToString()} by Thread[{Thread.CurrentThread.ManagedThreadId}]");
-                            }
-                            job.FetchedAt = DateTimeOffset.UtcNow;
-                            fetched = RealmFetchedJob.CreateInstance(_storage, job.Id, job.JobId, job.Queue, job.FetchedAt);
-                            transaction.Commit();
-                        }
-                       
-                        if (fetched != null)
-                        {
-                            break;
-                        }
+                        var jobsInQueue = realm.All<JobQueueDto>()
+                            .Where(_ => (_.FetchedAt == null || _.FetchedAt < timeout))
+                            .Where(_ => _.Queue == queue);
+                        jobs.AddRange(jobsInQueue);
                     }
+                    var job = jobs.OrderBy(_ => _.Created).FirstOrDefault();
+
+                    if (job != null)
+                    {
+                        if (Logger.IsTraceEnabled())
+                        {
+                            Logger.Debug($"Fetched job {job.JobId} with FetchedAt {job.FetchedAt} by Thread[{Thread.CurrentThread.ManagedThreadId}]");
+                        }
+                        job.FetchedAt = DateTimeOffset.UtcNow;
+                        fetched = RealmFetchedJob.CreateInstance(_storage, job.Id, job.JobId, job.Queue, job.FetchedAt);
+                        transaction.Commit();
+                    }
+                       
+                    if (fetched != null)
+                    {
+                        break;
+                    }
+                }
 
 
                     
-                    WaitHandle.WaitAny(new WaitHandle[] { cancellationEvent.WaitHandle, NewItemInQueueEvent }, pollInterval);
-                    cancellationToken.ThrowIfCancellationRequested();
-                } while (true);
-            }
+                WaitHandle.WaitAny(new WaitHandle[] { cancellationEvent.WaitHandle, NewItemInQueueEvent }, pollInterval);
+                cancellationToken.ThrowIfCancellationRequested();
+            } while (true);
+
             return fetched;
         }
 
