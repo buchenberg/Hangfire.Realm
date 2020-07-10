@@ -1,8 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using Hangfire.Server;
+﻿using Hangfire.Server;
 using Hangfire.Storage;
+using System;
+using System.Collections.Generic;
 
 namespace Hangfire.Realm.DAL
 {

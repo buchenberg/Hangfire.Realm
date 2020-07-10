@@ -66,6 +66,7 @@ namespace Hangfire.Realm
                 var expiredHashRecords = realm.All<HashDto>().Where(_ => _.ExpireAt < DateTimeOffset.UtcNow);
                 _logger.Debug($"Removing {expiredHashRecords.Count()} outdated hash records...");
                 realm.RemoveRange(expiredHashRecords);
+
                 transaction.Commit();
             }
             

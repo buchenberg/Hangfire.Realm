@@ -34,7 +34,7 @@ namespace Hangfire.Realm.DAL
             }
 
         }
-        public override IDisposable AcquireDistributedLock(string resource, TimeSpan timeout) => null;
+        public override IDisposable AcquireDistributedLock(string resource, TimeSpan timeout) => null; //No locks in RealmDb
 
         public override string CreateExpiredJob(Job job, IDictionary<string, string> parameters, DateTime createdAt, TimeSpan expireIn)
         {
@@ -118,18 +118,12 @@ namespace Hangfire.Realm.DAL
         [CanBeNull]
         public override JobData GetJobData(string jobId)
         {
-            if (jobId == null)
-            {
-                throw new ArgumentNullException(nameof(jobId));
-            }
+            if (jobId == null) throw new ArgumentNullException(nameof(jobId));
 
             using var realm = _storage.GetRealm();
             var jobDto = realm.Find<JobDto>(jobId);
 
-            if (jobDto == null)
-            {
-                return null;
-            }
+            if (jobDto == null) return null;
 
             var invocationData = SerializationHelper.Deserialize<InvocationData>(jobDto.InvocationData);
             invocationData.Arguments = jobDto.Arguments;
@@ -159,21 +153,13 @@ namespace Hangfire.Realm.DAL
         [CanBeNull]
         public override StateData GetStateData(string jobId)
         {
+            if (jobId == null) throw new ArgumentNullException(nameof(jobId));
             try
             {
-                if (jobId == null)
-                {
-                    throw new ArgumentNullException(nameof(jobId));
-                }
-
                 using var realm = _storage.GetRealm();
                 var state = realm.Find<JobDto>(jobId).StateHistory.OrderByDescending(_ => _.Created)
                     .FirstOrDefault();
-                if (state == null)
-                {
-                    return null;
-                }
-
+                if (state == null) return null;
                 return new StateData
                 {
                     Name = state.Name,
@@ -224,9 +210,9 @@ namespace Hangfire.Realm.DAL
 
         public override void RemoveServer(string serverId)
         {
+            if (serverId == null) throw new ArgumentNullException(nameof(serverId));
             try
             {
-                if (serverId == null) throw new ArgumentNullException(nameof(serverId));
                 using var realm = _storage.GetRealm();
                 using var transaction = realm.BeginWrite();
                 var server = realm.Find<ServerDto>(serverId);
@@ -242,9 +228,9 @@ namespace Hangfire.Realm.DAL
 
         public override void Heartbeat(string serverId)
         {
+            if (serverId == null) throw new ArgumentNullException(nameof(serverId));
             try
             {
-                if (serverId == null) throw new ArgumentNullException(nameof(serverId));
                 using var realm = _storage.GetRealm();
                 using var transaction = realm.BeginWrite();
                 var servers = realm.All<ServerDto>()
@@ -264,10 +250,10 @@ namespace Hangfire.Realm.DAL
 
         public override int RemoveTimedOutServers(TimeSpan timeOut)
         {
+            if (timeOut.Duration() != timeOut)
+                throw new ArgumentException("The `timeOut` value must be positive.", nameof(timeOut));
             try
             {
-                if (timeOut.Duration() != timeOut)
-                    throw new ArgumentException("The `timeOut` value must be positive.", nameof(timeOut));
                 var cutoff = DateTime.UtcNow.Add(timeOut.Negate());
                 var deletedServerCount = 0;
                 using var realm = _storage.GetRealm();
@@ -319,8 +305,7 @@ namespace Hangfire.Realm.DAL
         }
         public override string GetFirstByLowestScoreFromSet(string key, double fromScore, double toScore)
         {
-            if (key == null)
-                throw new ArgumentNullException(nameof(key));
+            if (key == null) throw new ArgumentNullException(nameof(key));
             if (toScore < fromScore)
                 throw new ArgumentException("The `toScore` value must be higher or equal to the `fromScore` value.");
             return GetFirstByLowestScoreFromSet(key, fromScore, toScore, 1).FirstOrDefault();
