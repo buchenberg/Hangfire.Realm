@@ -13,7 +13,7 @@ namespace Hangfire.Realm.Sample.NET.Core
             for (var i = 0; i < 10; i++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                //Thread.Sleep(5000);
+                Thread.Sleep(1000);
                 Console.WriteLine($"Fire-and-forget job {jobNumber} - {i + 1}");
             }
         }

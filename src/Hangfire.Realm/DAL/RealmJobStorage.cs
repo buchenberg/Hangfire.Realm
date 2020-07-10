@@ -7,7 +7,7 @@ namespace Hangfire.Realm.DAL
 {
     public class RealmJobStorage : JobStorage
     {
-        private static readonly object LockObject = new object();
+        private readonly object _lockObject;
         internal TimeSpan? SlidingInvisibilityTimeout => Options.SlidingInvisibilityTimeout;
         internal TimeSpan? DistributedLockLifetime => Options.DistributedLockLifetime;
 
@@ -15,6 +15,7 @@ namespace Hangfire.Realm.DAL
 	    {
 		    Options = options ?? throw new ArgumentNullException(nameof(options));
             SchemaVersion = options.RealmConfiguration.SchemaVersion;
+            _lockObject = new object();
         }
 
         public ulong SchemaVersion { get; set; }
@@ -39,7 +40,7 @@ namespace Hangfire.Realm.DAL
 
         public Realms.Realm GetRealm()
         {
-            lock (RealmJobStorage.LockObject)
+            lock (_lockObject)
             {
                 return Realms.Realm.GetInstance(Options.RealmConfiguration);
             }
