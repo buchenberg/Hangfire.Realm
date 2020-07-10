@@ -159,7 +159,6 @@ namespace Hangfire.Realm.Tests
             JobDto jobDto = CreateEmptyJob();
             _realm.Write(() =>
             {
-
                 _realm.Add(jobDto);
             });
 
