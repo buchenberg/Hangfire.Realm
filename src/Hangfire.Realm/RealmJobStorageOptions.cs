@@ -19,7 +19,7 @@ namespace Hangfire.Realm
         public RealmConfigurationBase RealmConfiguration { get; set; }
         public TimeSpan QueuePollInterval
         {
-            get { return _queuePollInterval; }
+            get => _queuePollInterval;
             set
             {
                 var message = $"The QueuePollInterval property value should be positive. Given: {value}.";
@@ -38,12 +38,12 @@ namespace Hangfire.Realm
         }
         public TimeSpan? SlidingInvisibilityTimeout
         {
-            get { return _slidingInvisibilityTimeout; }
+            get => _slidingInvisibilityTimeout;
             set
             {
                 if (value <= TimeSpan.Zero)
                 {
-                    throw new ArgumentOutOfRangeException("Sliding timeout should be greater than zero");
+                    throw new ArgumentOutOfRangeException(nameof(SlidingInvisibilityTimeout),"Sliding timeout should be greater than zero");
                 }
 
                 _slidingInvisibilityTimeout = value;
@@ -51,12 +51,12 @@ namespace Hangfire.Realm
         }
         public TimeSpan JobExpirationCheckInterval
         {
-            get { return _jobExpirationCheckInterval; }
+            get => _jobExpirationCheckInterval;
             set
             {
                 if (value.TotalMilliseconds > int.MaxValue)
                 {
-                    throw new ArgumentOutOfRangeException("Job expiration check interval cannot be greater than int.MaxValue");
+                    throw new ArgumentOutOfRangeException(nameof(JobExpirationCheckInterval), "Job expiration check interval cannot be greater than int.MaxValue");
                 }
                 _jobExpirationCheckInterval = value;
             }

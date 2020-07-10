@@ -1,6 +1,6 @@
 using System;
 
-namespace Hangfire.Realm
+namespace Hangfire.Realm.Exceptions
 {
     public class RealmDistributedLockException : Exception
     {

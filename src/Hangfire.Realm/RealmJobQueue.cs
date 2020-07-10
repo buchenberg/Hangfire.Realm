@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using Hangfire.Realm.DAL;
 
 namespace Hangfire.Realm
 {
@@ -23,23 +24,6 @@ namespace Hangfire.Realm
         {
             _storage = storage ?? throw new ArgumentNullException(nameof(storage));
         }
-        public void Enqueue(string queue, string jobId)
-        {
-            try
-            {
-                var realm = _storage.GetRealm();
-                realm.Write(() =>
-                {
-                    realm.Add(new JobQueueDto { Queue = queue, JobId = jobId });
-                });
-            }
-            catch (Exception e)
-            {
-                Logger.ErrorException($"Error adding job {jobId} to the {queue} queue.", e);
-                throw;
-            }
-        }
-
 
         [NotNull]
         public IFetchedJob Dequeue(string[] queues, CancellationToken cancellationToken)
@@ -57,46 +41,48 @@ namespace Hangfire.Realm
 
             var pollInterval = _storage.Options.QueuePollInterval > TimeSpan.Zero
                 ? _storage.Options.QueuePollInterval
-                : TimeSpan.FromSeconds(1);
+                : TimeSpan.FromSeconds(15);
             var timeout = DateTimeOffset.UtcNow.AddSeconds((int)_storage.Options.SlidingInvisibilityTimeout.Value.Negate().TotalSeconds);
             RealmFetchedJob fetched = null;
 
-            using (var cancellationEvent = cancellationToken.GetCancellationEvent())
+            using var cancellationEvent = cancellationToken.GetCancellationEvent();
+            do
             {
-                do
+                cancellationToken.ThrowIfCancellationRequested();
+                using (var realm = _storage.GetRealm())
+                using (var transaction = realm.BeginWrite())
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    var realm = _storage.GetRealm();
-                    realm.Write(() =>
-                    {
-                        List<JobQueueDto> jobs = new List<JobQueueDto>();
-                        foreach (var queue in queues)
-                        {
-                            var jobsInQueue = realm.All<JobQueueDto>()
-                           .Where(_ => (_.FetchedAt == null || _.FetchedAt < timeout))
-                           .Where(_ => _.Queue == queue);
-                            jobs.AddRange(jobsInQueue);
-                        }
-                        var job = jobs.OrderBy(_ => _.Created).FirstOrDefault();
 
-                        if (job != null)
+                    var jobs = new List<JobQueueDto>();
+                    foreach (var queue in queues)
+                    {
+                        var jobsInQueue = realm.All<JobQueueDto>()
+                            .Where(_ => (_.FetchedAt == null || _.FetchedAt < timeout))
+                            .Where(_ => _.Queue == queue);
+                        jobs.AddRange(jobsInQueue);
+                    }
+                    var job = jobs.OrderBy(_ => _.Created).FirstOrDefault();
+
+                    if (job != null)
+                    {
+                        if (Logger.IsTraceEnabled())
                         {
-                            if (Logger.IsTraceEnabled())
-                            {
-                                Logger.Debug($"Fetched job {job.JobId} with FetchedAt {job.FetchedAt.ToString()} by Thread[{Thread.CurrentThread.ManagedThreadId}]");
-                            }
-                            job.FetchedAt = DateTimeOffset.UtcNow;
-                            fetched = new RealmFetchedJob(_storage, job.Id, job.JobId, job.Queue, job.FetchedAt);
+                            Logger.Debug($"Fetched job {job.JobId} with FetchedAt {job.FetchedAt} by Thread[{Thread.CurrentThread.ManagedThreadId}]");
                         }
-                    });
+                        job.FetchedAt = DateTimeOffset.UtcNow;
+                        fetched = RealmFetchedJob.CreateInstance(_storage, job.Id, job.JobId, job.Queue, job.FetchedAt);
+                        transaction.Commit();
+                    }
+                       
                     if (fetched != null)
                     {
                         break;
                     }
-                    WaitHandle.WaitAny(new WaitHandle[] { cancellationEvent.WaitHandle, NewItemInQueueEvent }, pollInterval);
-                    cancellationToken.ThrowIfCancellationRequested();
-                } while (true);
-            }
+                }
+                WaitHandle.WaitAny(new WaitHandle[] { cancellationEvent.WaitHandle, NewItemInQueueEvent }, pollInterval);
+                cancellationToken.ThrowIfCancellationRequested();
+            } while (true);
+
             return fetched;
         }
 

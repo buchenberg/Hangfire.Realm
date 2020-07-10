@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Hangfire.Realm.DAL;
 
 namespace Hangfire.Realm
 {

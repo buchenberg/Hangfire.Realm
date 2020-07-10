@@ -1,14 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using Hangfire.Server;
+﻿using Hangfire.Server;
 using Hangfire.Storage;
-using Realms;
-using Realms.Sync;
+using System;
+using System.Collections.Generic;
 
-namespace Hangfire.Realm
+namespace Hangfire.Realm.DAL
 {
     public class RealmJobStorage : JobStorage
     {
+        private readonly object _lockObject;
         internal TimeSpan? SlidingInvisibilityTimeout => Options.SlidingInvisibilityTimeout;
         internal TimeSpan? DistributedLockLifetime => Options.DistributedLockLifetime;
 
@@ -16,6 +15,7 @@ namespace Hangfire.Realm
 	    {
 		    Options = options ?? throw new ArgumentNullException(nameof(options));
             SchemaVersion = options.RealmConfiguration.SchemaVersion;
+            _lockObject = new object();
         }
 
         public ulong SchemaVersion { get; set; }
@@ -31,18 +31,21 @@ namespace Hangfire.Realm
             return new RealmStorageConnection(this);
 	    }
 
-#pragma warning disable 618
+
         public override IEnumerable<IServerComponent> GetComponents()
-#pragma warning restore 618
         {
             yield return new ExpirationManager(this, Options.JobExpirationCheckInterval);
-           // yield return new CountersAggregator(this, _options.CountersAggregateInterval);
+            // yield return new CountersAggregator(this, _options.CountersAggregateInterval);
         }
 
         public Realms.Realm GetRealm()
         {
-            return Realms.Realm.GetInstance(Options.RealmConfiguration);
+            lock (_lockObject)
+            {
+                return Realms.Realm.GetInstance(Options.RealmConfiguration);
+            }
         }
+
 
     }
 }

@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using Hangfire.Realm.DAL;
 
 namespace Hangfire.Realm.Tests
 {
