@@ -12,8 +12,8 @@
     <LangVersion>8</LangVersion>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="AutoMapper" Version="10.0.0" />
-    <PackageReference Include="Hangfire.Core" Version="1.7.11" />
-    <PackageReference Include="Realm" Version="4.3.0" />
+    <PackageReference Include="AutoMapper" Version="10.1.1" />
+    <PackageReference Include="Hangfire.Core" Version="1.7.24" />
+    <PackageReference Include="Realm" Version="10.3.0" />
   </ItemGroup>
 </Project>
