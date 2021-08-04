@@ -254,7 +254,7 @@ namespace Hangfire.Realm.DAL
                 throw new ArgumentException("The `timeOut` value must be positive.", nameof(timeOut));
             try
             {
-                var cutoff = DateTime.UtcNow.Add(timeOut.Negate());
+                var cutoff = DateTimeOffset.UtcNow.Add(timeOut.Negate());
                 var deletedServerCount = 0;
                 using var realm = _storage.GetRealm();
                 using var transaction = realm.BeginWrite();
