@@ -5,18 +5,18 @@
 ![Nuget](https://img.shields.io/nuget/dt/Hangfire.Realm)
 ![GitHub](https://img.shields.io/github/license/buchenberg/Hangfire.Realm)
 
-This [Hangfire](http://hangfire.io) extension adds support for using the lightweight embeddable [Realm](https://realm.io) object database.
+This [Hangfire](http://hangfire.io) extension adds support for using the lightweight embeddable [Realm](https://realm.io) object database. Realm is meant to be embedded in a single application so the extension is optimized for a single embedded Hangfire instance and will likely not work otherwise.
 
 _**Warning:** While this extension has been tested extensively in development, it has not been fully tested in production. Please use responsibly. Any developer input is appreciated._
 
 ## Installation
 Package Manager:
 
-`Install-Package Hangfire.Realm -Version 1.0.3`
+`Install-Package Hangfire.Realm -Version 1.0.4`
 
 .NET CLI:
 
-`dotnet add package Hangfire.Realm --version 1.0.3`
+`dotnet add package Hangfire.Realm --version 1.0.4`
 
 
 
