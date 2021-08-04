@@ -646,9 +646,11 @@ namespace Hangfire.Realm.Tests
                 { "Key1", "Value1" },
                 { "Key2", "Value2" }
             });
+            _transaction.Commit();
 
             // ASSERT
-            var fields = _realm.All<HashDto>().ToList().Single().Fields.ToDictionary(f => f.Key, f => f.Value);
+            var hashes = _realm.All<HashDto>().ToList();
+            var fields = hashes.Single().Fields.ToDictionary(f => f.Key, f => f.Value);
             Assert.AreEqual("Value1", fields["Key1"]);
             Assert.AreEqual("Value2", fields["Key2"]);
         }
@@ -909,6 +911,7 @@ namespace Hangfire.Realm.Tests
 
             // ACT
             _transaction.RemoveSet("Set1");
+            _transaction.Commit();
 
             // ASSERT
             var testSet1 = _realm.All<SetDto>().Where(s => s.Key.StartsWith("Set1")).ToList();
