@@ -21,6 +21,6 @@ clone_depth: 1
 deploy:
   provider: NuGet
   api_key:
-    secure: oy2klc57xnxiodydafdaevdv2e46jbnetfhi2jjt4tssly
+    secure: nPVnPHmGOedqCdczJC+Gr16yuu2+97EDqcYtL5pJeqLSWzKPnEzRj88fneW7YWTy
   skip_symbols: false
   artifact: /.*\.nupkg/
